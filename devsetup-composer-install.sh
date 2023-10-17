@@ -22,4 +22,4 @@ cat <<EOT >> $TMP_ENVFILE
 COMPOSER_AUTH=$COMPOSER_AUTH_ENVVAR
 EOT
 
-docker run --rm -i --env-file $TMP_ENVFILE -v "${PWD}:/app" --user $(id -u):$(id -g) composer-pdo install -v --ignore-platform-reqs --no-scripts
+docker run --rm -i --env-file $TMP_ENVFILE -v "${PWD}:/app" -v ~/.ssh:/root/.ssh -v ~/.composer:/composer --user $(id -u):$(id -g) composer-pdo install -v --ignore-platform-reqs --no-scripts
