@@ -11,6 +11,7 @@ DOCKERFILE="$DOCKERFILE_TMPDIR/Dockerfile"
 cat >$DOCKERFILE <<EOT
 FROM composer
 RUN docker-php-ext-install mysqli pdo pdo_mysql
+RUN echo "composer:x:$(id -u):$(id -g):Nobody:/:/bin/bash" >> /etc/passwd
 EOT
 
 docker build -t composer-pdo $DOCKERFILE_TMPDIR
@@ -22,4 +23,4 @@ cat <<EOT >> $TMP_ENVFILE
 COMPOSER_AUTH=$COMPOSER_AUTH_ENVVAR
 EOT
 
-docker run --rm -i --env-file $TMP_ENVFILE -v "${PWD}:/app" -v ~/.ssh:/root/.ssh -v ~/.composer:/composer --user $(id -u):$(id -g) composer-pdo install -v --ignore-platform-reqs --no-scripts
+docker run --rm -i --env-file $TMP_ENVFILE -v "${PWD}:/app" -v ~/.ssh:/.ssh -v ~/.composer:/composer --user $(id -u):$(id -g) composer-pdo install -v --ignore-platform-reqs --no-scripts
