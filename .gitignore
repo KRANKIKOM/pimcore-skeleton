@@ -73,4 +73,5 @@ Dockerfile.compose
 Dockerfile.apache.compose
 
 # Assets built by webpack
-public/assets
+!public/assets
+public/assets/*
