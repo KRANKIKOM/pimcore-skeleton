@@ -2,7 +2,9 @@ tasks:
   - init: >
       ./gitpod-init.sh 
     command: |
-      DOCKER_BUILDKIT=0 COMPOSE_PARALLEL_LIMIT=1 docker-compose up pimcore-init && DOCKER_BUILDKIT=0 COMPOSE_PARALLEL_LIMIT=1 docker-compose up -d && docker-compose logs -f
+      if [ "$USER" != "gitpod" ]; then
+        DOCKER_BUILDKIT=0 COMPOSE_PARALLEL_LIMIT=1 docker-compose up pimcore-init && DOCKER_BUILDKIT=0 COMPOSE_PARALLEL_LIMIT=1 docker-compose up -d && docker-compose logs -f
+      fi
     env: 
       COMPOSE_PARALLEL_LIMIT: 1
       DOCKER_BUILDKIT: 0
