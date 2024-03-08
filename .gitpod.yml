@@ -2,7 +2,7 @@ tasks:
   - init: >
       ./gitpod-init.sh 
     command: |
-      if [ "$USER" != "gitpod" ]; then
+      if [ "$GITPOD_REPO_ROOT" != "/workspace/pimcore-skeleton" ]; then
         DOCKER_BUILDKIT=0 COMPOSE_PARALLEL_LIMIT=1 docker-compose up pimcore-init && DOCKER_BUILDKIT=0 COMPOSE_PARALLEL_LIMIT=1 docker-compose up -d && docker-compose logs -f
       fi
     env: 
