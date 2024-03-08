@@ -7,6 +7,8 @@ if [ "$GITPOD_REPO_ROOT" == "/workspace/pimcore-skeleton" ]; then
     echo "Skipping gitpod-init.sh"
     exit 2
 fi
+echo "*** Running devsetup bootstrap"
+./devsetup-bootstrap.sh
 echo "*** Creating public/assets|bundles|var & vendor & node_modules"
 mkdir -p public/var
 mkdir -p public/assets
