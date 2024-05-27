@@ -152,6 +152,8 @@ jobs:
             kubectl -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" --context="${CONTEXT}" delete job pimcore-install || true
             echo "Setting image version (php-fpm)"
             kustomize edit set image "k-registry.krankikom.de/krankikom/pimcore-website=${FULL_IMAGENAME_LOWER}:${IMAGELABEL}"
+            echo "Setting namespace ${NAMESPACE_PREFIX}-${ENVIRONMENT}"
+            kustomize edit set namespace "${NAMESPACE_PREFIX}-${ENVIRONMENT}"
             echo "build dry-run"
             kustomize build
             echo "Running kubeval"
