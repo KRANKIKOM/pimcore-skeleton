@@ -29,6 +29,8 @@ env:
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
+  # Pre-set NAMESPACE_PREFIX from a GitHub variable if available
+  NAMESPACE_PREFIX: ${{ vars.NAMESPACE_PREFIX }}
   
 jobs:
   deploy:
@@ -50,7 +52,7 @@ jobs:
     
       - name: Cache kubectl
         id: cache-kubectl
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: /usr/local/bin/kubectl
           key: ${{ runner.os }}-${{ steps.system-info.outputs.release }}-kubectl
@@ -68,7 +70,7 @@ jobs:
 
       - name: Cache kubeval
         id: cache-kubeval
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: /usr/local/bin/kubeval
           key: ${{ runner.os }}-${{ steps.system-info.outputs.release }}-kubeval
@@ -92,7 +94,7 @@ jobs:
      
 
       - name: Cache vendor directory
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: vendor
           key: ${{ runner.os }}-${{ steps.system-info.outputs.release }}-vendor-${{ hashFiles('composer.lock') }}
@@ -111,11 +113,12 @@ jobs:
             # NAMESPACE_PREFIX is not set, compute and set it
             PREFIX=$(echo "${GITHUB_REPOSITORY}" | cut -d '/' -f 2 | cut -d '-' -f 1)
             echo "Setting NAMESPACE_PREFIX to $PREFIX"
-            echo "NAMESPACE_PREFIX=$PREFIX" >> $GITHUB_ENV
+            echo "NAMESPACE_PREFIX=$PREFIX" >> "$GITHUB_ENV"
           else
             # NAMESPACE_PREFIX is already set, use the existing value
-            echo "Using existing NAMESPACE_PREFIX: $NAMESPACE_PREFIX"
+            echo "Using existing NAMESPACE_PREFIX: ${NAMESPACE_PREFIX}"
           fi
+
       - name: Kustomize and kubectl apply
         run: |
           export KUBECONFIG="$PWD/kubeconfig"
