@@ -11,14 +11,6 @@ on:
         description: 'Environment'
         type: environment
         required: true
-      k8scontext:
-        description: 'Kubernetes Context'
-        required: true
-        default: 'm-k8s-dev'
-        type: choice
-        options:
-          - m-k8s-dev
-          - m-k8s-production
       pimcore_install:
         description: 'Run pimcore installation'
         required: false
@@ -67,7 +59,6 @@ jobs:
             echo "Using cached kubectl"
           fi
 
-
       - name: Cache kubeval
         id: cache-kubeval
         uses: actions/cache@v3
@@ -92,7 +83,6 @@ jobs:
         with:
           string: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
      
-
       - name: Cache vendor directory
         uses: actions/cache@v3
         with:
@@ -106,7 +96,6 @@ jobs:
             ./devsetup-composer-install.sh
           fi
 
-
       - name: Set NAMESPACE_PREFIX if not already set
         run: |
           if [[ -z "${NAMESPACE_PREFIX}" ]]; then
@@ -118,6 +107,17 @@ jobs:
             # NAMESPACE_PREFIX is already set, use the existing value
             echo "Using existing NAMESPACE_PREFIX: ${NAMESPACE_PREFIX}"
           fi
+
+      - name: Set K8s Context
+        run: |
+          if [[ -n "${{ vars.K8S_CONTEXT }}" ]]; then
+            CONTEXT="${{ vars.K8S_CONTEXT }}"
+          elif [[ "${{ inputs.environment }}" == "production" ]]; then
+            CONTEXT="m-k8s-production"
+          else
+            CONTEXT="m-k8s-dev"
+          fi
+          echo "K8S_CONTEXT=$CONTEXT" >> $GITHUB_ENV
 
       - name: Kustomize and kubectl apply
         run: |
@@ -142,17 +142,17 @@ jobs:
           kustomize build | kubeval --ignore-missing-schemas --strict --force-color
           echo "---------------------------------"
           echo "Deleting pimcore-migration Job (so we can recreate it) ... a failure is not a problem:"
-          kubectl -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" --context="${CONTEXT}" delete job pimcore-migration || true
+          kubectl -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" --context="${K8S_CONTEXT}" delete job pimcore-migration || true
           echo "---------------------------------"
           echo "Running kubectl apply"
-          kustomize build | kubectl --context="${CONTEXT}" apply -f -
+          kustomize build | kubectl --context="${K8S_CONTEXT}" apply -f -
           echo "---------------------------------"
           echo "PIMCORE_INSTALL: $PIMCORE_INSTALL"
           if [ "$PIMCORE_INSTALL" != "false" ]; then
             echo "Running pimcore install"
             cd pimcore-install
             echo "Deleting pimcore-install Job (so we can recreate it) ... a failure is not a problem:"
-            kubectl -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" --context="${CONTEXT}" delete job pimcore-install || true
+            kubectl -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" --context="${K8S_CONTEXT}" delete job pimcore-install || true
             echo "Setting image version (php-fpm)"
             kustomize edit set image "k-registry.krankikom.de/krankikom/pimcore-website=${FULL_IMAGENAME_LOWER}:${IMAGELABEL}"
             echo "Setting namespace ${NAMESPACE_PREFIX}-${ENVIRONMENT}"
@@ -162,11 +162,10 @@ jobs:
             echo "Running kubeval"
             kustomize build | kubeval --ignore-missing-schemas --strict --force-color
             echo "Running kubectl apply"
-            kustomize build | kubectl --context="${CONTEXT}" apply -f -
+            kustomize build | kubectl --context="${K8S_CONTEXT}" apply -f -
             cd ..
           fi
         env:
-          CONTEXT: ${{ inputs.k8scontext }}
           ENVIRONMENT: ${{ inputs.environment }}
           FULL_IMAGENAME_LOWER: ${{ steps.lowercase-fully-qualified-image-name.outputs.lowercase }}
           IMAGELABEL: ${{ inputs.imagelabel }}
