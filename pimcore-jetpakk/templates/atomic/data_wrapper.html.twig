@@ -1,0 +1,13 @@
+{#
+    Extend this template to distribute reoccurring blockdefinition data to area-blocks.
+    Example: /templates/areas/text-cta/view.html.twig
+#}
+
+{% set el_spacing = pimcore_select('el_spacing_bottom').getData()|default('mb-el') %}
+{% set el_section_id = pimcore_input('el_section_id').getData()|default(false) %}
+
+{% block brick_wrapper %}
+    <div class="el_wrapper" {{ el_section_id ? 'id=anchor-' ~ el_section_id }}>
+        {% block brick_include %}{% endblock %}
+    </div>
+{% endblock %}

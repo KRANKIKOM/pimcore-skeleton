@@ -1,0 +1,109 @@
+{% block accordion_outside %}
+    {% set acc_uid = acc_uid is defined ? acc_uid : brick.index %}
+    {% set acc_parent_id = acc_parent_id is defined ? acc_parent_id : 'accordion-parent-' ~ acc_uid
+    %}
+    {% set acc_repeater = acc_repeater is defined
+        ? acc_repeater
+        : pimcore_block(
+            'acc_repeater',
+            {
+                default: 1
+            }
+        )
+    %}
+    {% set acc_headline = acc_headline is defined
+        ? acc_headline
+        : pimcore_headline(
+            'headline',
+            {
+                placeholder: 'Headline',
+                headlineClass: 'mb-0',
+                default: {
+                    headlineSeo: 'h2'
+                }
+            }
+        )
+    %}
+    {% set acc_allowed_blocks = acc_allowed_blocks is defined
+        ? acc_allowed_blocks
+        : block_config_allowed|default(null)
+    %}
+
+    {% block accordion %}
+        <div class="{{ classes([el_spacing]) }}">
+            <div class="container-standard">
+                <div class="accordion-wrapper">
+                    {{ acc_headline|raw }}
+                    <div class="accordion__sections">
+                        <div class="accordion vstack gap-0_5" id="{{ acc_parent_id }}">
+                            {% for b in acc_repeater.iterator %}
+                                {% block accordion_inside %}
+                                    {% set index = acc_repeater.current %}
+                                    {% set collapse_id = acc_parent_id ~ '-collapse-' ~ index %}
+                                    {% set heading_id = acc_parent_id ~ '-heading-' ~ index %}
+                                    {% set is_active = index == 0 %}
+                                    {% set acc_inside_headline = acc_inside_headline is defined
+                                        ? acc_inside_headline
+                                        : pimcore_input(
+                                            'acc_section_headline',
+                                            {
+                                                placeholder: 'Sektionsüberschrift'
+                                            }
+                                        )
+                                    %}
+
+                                    <div class="col">
+                                        <div class="accordion-item">
+                                            <h2 class="accordion-header" id="{{ heading_id }}">
+                                                <button class="accordion-button {{
+                                                    not is_active and not editmode
+                                                        ? 'collapsed'
+                                                    }} "
+                                                    type="button"
+                                                    {{ not editmode ? 'data-bs-toggle="collapse"' }}
+                                                    data-bs-target="#{{ collapse_id }}"
+                                                    aria-expanded="{{
+                                                    is_active
+                                                        ? 'true'
+                                                        : 'false'
+                                                    }}"
+                                                    aria-controls="{{ collapse_id }}">
+                                                    {% block accordion_inside_head_inner %}
+                                                        {{ acc_inside_headline|raw }}
+                                                    {% endblock %}
+                                                </button>
+                                            </h2>
+                                            <div id="{{ collapse_id }}"
+                                                class="accordion-collapse collapse {{
+                                                is_active or editmode
+                                                    ? 'show'
+                                                }}"
+                                                aria-labelledby="{{ heading_id }}"
+                                                data-bs-parent="#{{ acc_parent_id }}">
+                                                <div class="accordion-body">
+                                                    {% block accordion_inside_content_inner %}
+                                                        {{
+                                                            pimcore_areablock(
+                                                                'accordion_content',
+                                                                {
+                                                                    allowed: acc_allowed_blocks,
+                                                                    globalParams: {
+                                                                        block_config_allowed: acc_allowed_blocks
+                                                                    }
+                                                                }
+                                                            )
+                                                        }}
+                                                    {% endblock %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endblock %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endblock %}
+{% endblock %}

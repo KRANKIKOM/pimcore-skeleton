@@ -1,0 +1,14 @@
+imports:
+    - { resource: image-thumbnails/jetpakk-placeholder.yaml }
+    - { resource: image-thumbnails/kv_thumbnail.yaml }
+    - { resource: image-thumbnails/fullscreen_thumbnail.yaml }
+    - { resource: image-thumbnails/imagebrick_thumbnail.yaml }
+    - { resource: image-thumbnails/picture_text_fixed_thumbnail.yaml }
+    - { resource: image-thumbnails/picture_text_responsive_thumbnail.yaml }
+    - { resource: image-thumbnails/gallery.yaml }
+    - { resource: image-thumbnails/contain-16x9-640.yaml }
+    - { resource: image-thumbnails/contain-16x9-960.yaml }
+    - { resource: image-thumbnails/contain-16x9-1280.yaml }
+    - { resource: image-thumbnails/contain-16x9-1440.yaml }
+    - { resource: image-thumbnails/contain-16x9-1920.yaml }
+    - { resource: image-thumbnails/header_logo.yaml }

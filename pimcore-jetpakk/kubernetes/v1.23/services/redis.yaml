@@ -1,0 +1,176 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  labels:
+    app: redis
+spec:
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - args:
+        - --port
+        - $(REDIS_PORT)
+        - --protected-mode
+        - "no"
+        - --include
+        - /opt/bitnami/redis/etc/redis.conf
+        command:
+        - /run.sh
+        env:
+        - name: REDIS_REPLICATION_MODE
+          value: master
+        - name: REDIS_PORT
+          value: "6379"
+        - name: ALLOW_EMPTY_PASSWORD
+          value: "yes"
+        - name: REDIS_DISABLE_COMMANDS
+          value: "FLUSHDB,FLUSHALL"
+        image: docker.io/bitnami/redis:6.2
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_local.sh
+          failureThreshold: 5
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: redis
+        ports:
+        - containerPort: 6379
+          name: redis
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_local.sh
+          failureThreshold: 5
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /health
+          name: health
+        - mountPath: /data
+          name: redis-data
+        - mountPath: /opt/bitnami/redis/etc
+          name: config
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - command:
+        - /bin/chown
+        - -R
+        - 1001:1001
+        - /data
+        image: docker.io/bitnami/minideb:latest
+        imagePullPolicy: IfNotPresent
+        name: volume-permissions
+        resources: {}
+        securityContext:
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /data
+          name: redis-data
+      - command:
+        - /bin/bash
+        - -c
+        - echo 65535 > /proc/sys/net/core/somaxconn
+        image: docker.io/bitnami/minideb:latest
+        imagePullPolicy: IfNotPresent
+        name: somaxconn
+        resources: {}
+        securityContext:
+          privileged: true
+          runAsUser: 0
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 1001
+        runAsUser: 1001
+      serviceAccount: default
+      serviceAccountName: default
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - configMap:
+          defaultMode: 493
+          name: redis-health
+        name: health
+      - configMap:
+          defaultMode: 420
+          name: redis-config
+        name: config
+      - name: redis-data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: redis
+  name: redis
+spec:
+  ports:
+  - name: redis
+    port: 6379
+    protocol: TCP
+    targetPort: redis
+  selector:
+    app: redis
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: redis
+  name: redis-config
+data:
+  redis.conf: |-
+    dir /data
+
+    # appendonly yes
+    # appendfsync no
+    save 900 1
+    save 300 10
+    save 60 5000
+    save 10 10000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app: redis
+  name: redis-health
+data:
+  ping_local.sh: |-
+    response=$(
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi

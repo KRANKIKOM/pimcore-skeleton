@@ -1,0 +1,39 @@
+{% set dls_repeater = dls_repeater is defined
+    ? dls_repeater
+    : pimcore_block(
+        'downloadLinks',
+        {
+            manual: true,
+            default: 1
+        }
+    )
+%}
+
+{% set dls_headline = dls_headline is defined
+    ? dls_headline
+    : pimcore_input(
+        'sectionHeadline',
+        {
+            placeholder: 'Sektionsüberschrift'
+        }
+    )
+%}
+
+<div class="downloads-section">
+    {% if has(dls_headline) %}
+        <h4 class="my-3">{{ dls_headline|raw }}</h4>
+    {% endif %}
+    {% do dls_repeater.start() %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2">
+        {% for b in dls_repeater.iterator %}
+            <div class="col">
+                {% do dls_repeater.blockConstruct() %}
+                {% do dls_repeater.blockStart() %}
+                {% include '@PimcoreJetpakk/atomic/molecules/download-bar.html.twig' %}
+                {% do dls_repeater.blockEnd() %}
+                {% do dls_repeater.blockDestruct() %}
+            </div>
+        {% endfor %}
+    </div>
+    {% do dls_repeater.end() %}
+</div>

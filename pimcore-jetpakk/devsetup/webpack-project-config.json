@@ -1,0 +1,10 @@
+{
+	"publicPath": "public/",
+	"sourcePath": "src-frontend/",
+	"twigNamespaces": {},
+	"BrowserSync": {
+		"open": false,
+		"proxy": "https://apache/"
+	},
+	"watchOptionsPoll": true
+}

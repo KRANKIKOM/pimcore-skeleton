@@ -1,0 +1,163 @@
+{% block slider_outside %}
+    {% set speed = pimcore_select('speed').getData()|default('300')%}
+    {% set autoplay = pimcore_select('autoplay').getData()|default(0)|number_format %}
+    {% set autoplay_delay = pimcore_numeric('autoplay_delay').getData()|number_format %}
+    {% set navigation = pimcore_select('navigation').getData()|number_format %}
+    {% set visual_cue = pimcore_select('visual_cue').getData()|default('pagination') %}
+    {% set centerInsufficientSlides = pimcore_select('centerInsufficientSlides').getData()|number_format %}
+
+    {% set base_config = {
+        speed: speed + 0,
+        autoplay: autoplay ? true : false,
+        autoplay_delay: autoplay_delay + 0,
+        navigation: navigation
+            ? {
+                nextEl: '.swiper-button-next',
+                prevEl: '.swiper-button-prev'
+            }
+            : false,
+        pagination: visual_cue == 'pagination'
+            ? {
+                el: '.swiper-pagination',
+                clickable: true
+            }
+            : false,
+        scrollbar: visual_cue == 'scrollbar'
+            ? {
+                el: '.swiper-scrollbar',
+                draggable: true
+            }
+            : false,
+        centerInsufficientSlides: centerInsufficientSlides + 0,
+        mousewheel: {
+            forceToAxis: true
+        }
+    } %}
+
+    {% set steps = [
+        {
+            bp: 'bp_0',
+            mod: ''
+        },
+        {
+            bp: 'bp_768',
+            mod: '_md'
+        },
+        {
+            bp: 'bp_1024',
+            mod: '_xl'
+        }
+    ] %}
+    {% set step_configs = {} %}
+    {% for step in steps %}
+        {% set slidesPerGroup = pimcore_numeric('slidesPerGroup' ~ step.mod).getData()|number_format %}
+        {% set slidesPerView = pimcore_numeric('slidesPerView' ~ step.mod).getData()|number_format %}
+        {% set spaceBetween = pimcore_numeric('spaceBetween' ~ step.mod).getData()|number_format %}
+
+        {% set built_config = {
+            slidesPerGroup: slidesPerGroup + 0,
+            slidesPerView: slidesPerView + 0,
+            spaceBetween: spaceBetween + 0
+        } %}
+        {% set step_configs =
+            step_configs|merge({
+                (step.bp): built_config
+            })
+        %}
+    {% endfor %}
+
+    {% set has_md = pimcore_select('slide_settings_md').getData()|number_format %}
+    {% set has_xl = pimcore_select('slide_settings_xl').getData()|number_format %}
+
+    {% set swiper_config = base_config %}
+    {% set swiper_config = swiper_config|merge(step_configs['bp_0']) %}
+    {% set swiper_config =
+        swiper_config|merge({
+            breakpoints: {
+                (has_md ? 768): has_md ? step_configs['bp_768'],
+                (has_xl ? 1024): has_xl ? step_configs['bp_1024']
+            }
+        })
+    %}
+    {% set swiper_config = swiper_config|json_encode %}
+
+    {% set slider_repeater = slider_repeater is defined
+        ? slider_repeater
+        : pimcore_block(
+            'slider_repeater',
+            {
+                default: 1,
+                manual: true
+            }
+        )
+    %}
+    {% set slider_headline = slider_headline is defined
+        ? slider_headline
+        : pimcore_headline(
+            'slider_headline',
+            {
+                placeholder: 'Headline',
+                headlineClass: 'mb-0',
+                default: {
+                    headlineSeo: 'h2'
+                }
+            }
+        )
+    %}
+    {% set slider_allowed_blocks = slider_allowed_blocks is defined
+        ? slider_allowed_blocks
+        : block_config_allowed|default(null)
+    %}
+
+    {% block slider %}
+        <div class="slider-wrapper">
+            <div class="{{ classes([el_spacing, 'overflow-hidden']) }}">
+                <div class="container-standard">
+                    <div class="vstack gap-6">
+                        {{ slider_headline|raw }}
+                        <div>
+                            {% do slider_repeater.start() %}
+                            <div class="swiper"
+                                data-swiper-config="{{ swiper_config|default(null) }}">
+                                <div class="swiper-wrapper">
+                                    {% for b in slider_repeater.iterator %}
+                                        {% do slider_repeater.blockConstruct() %}
+
+                                        <div class="swiper-slide">
+                                            {%- do slider_repeater.blockStart(false) -%}
+                                            {% do slider_repeater.blockControls() %}
+                                            {% block slider_slide_content %}
+                                                {{
+                                                    pimcore_areablock(
+                                                        'slider_content',
+                                                        {
+                                                            allowed: slider_allowed_blocks,
+                                                            globalParams: {
+                                                                block_config_allowed: slider_allowed_blocks
+                                                            }
+                                                        }
+                                                    )
+                                                }}
+                                            {% endblock %}
+                                            {%- do slider_repeater.blockEnd() -%}
+                                        </div>
+                                        {% do slider_repeater.blockDestruct() %}
+                                    {% endfor %}
+                                </div>
+                                {% if navigation %}
+                                    <div class="swiper-button-prev"></div>
+                                    <div class="swiper-button-next"></div>
+                                {% endif %}
+                                <div class="swiper-pagination"></div>
+                                {% if visual_cue == "scrollbar" %}
+                                    <div class="swiper-scrollbar"></div>
+                                {% endif %}
+                            </div>
+                            {% do slider_repeater.end() %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endblock %}
+{% endblock %}

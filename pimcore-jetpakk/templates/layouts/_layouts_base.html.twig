@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="{{ app.request.locale }}">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {% block cookiebot %}
+            {% set cookiebot = pimcore_website_config('cookiebot-key') %}
+            {% if cookiebot %}
+                <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="{{ cookiebot }}" data-blockingmode="auto" type="text/javascript"></script>
+            {% else %}
+                <script>
+                    console.warn('Cookiebot key is not set.');
+                </script>
+            {% endif %}
+        {% endblock %}
+        {% block metadata deferred %}
+        {{ pimcore_head_title() }}
+        {{ pimcore_head_meta() }}
+        {{ pimcore_head_link() }}
+        {{ pimcore_head_script() }}
+        {% endblock %}
+        {% block general_assets %}
+            {% do pimcore_head_link().appendStylesheet('/assets/css/app.css') %}
+            {% do pimcore_head_script().prependFile(
+                '/assets/js/app.js',
+                'text/javascript',
+                {
+                    defer: true
+                }
+            ) %}
+            {% do pimcore_head_script().prependFile('/assets/js/runtime.js', 'text/javascript') %}
+        {% endblock %}
+        {% block favicon %}
+            <link rel="icon" type="image/svg+xml" href="/assets/img/favicon/favicon.svg" />
+            <link rel="icon" type="image/png" href="/assets/img/favicon/favicon.png" />
+        {% endblock %}
+        {% block tracking %}{% endblock %}
+    </head>
+    {% set body_classes = [editmode ? 'editmode'] %}
+    {% set body_ids = [] %}
+
+    {% if block('body_classes') is defined %}
+        {% set body_classes = body_classes|merge([block('body_classes')]) %}
+    {% endif %}
+    {% if block('body_ids') is defined %}
+        {% set body_ids = body_ids|merge([block('body_ids')]) %}
+    {% endif %}
+
+    <body id="{{ body_ids|join(' ')|trim }}" class="{{ body_classes|join(' ')|trim }}">
+        {% block body_wrapper %}
+            {% block body_wrapper_start %}{% endblock %}
+            {% block body %}
+                {% block header %}{% endblock %}
+                {% block before_content_wrapper %}
+                    <div class="before-content">{% block before_content %}{% endblock %}</div>
+                {% endblock %}
+                {% block content_wrapper %}
+                    <main>{% block content %}{% endblock %}</main>
+                {% endblock %}
+                {% block footer %}{% endblock %}
+            {% endblock %}
+            {% block body_wrapper_end %}{% endblock %}
+        {% endblock %}
+    </body>
+</html>

@@ -1,0 +1,68 @@
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                definitions:
+                    fullscreen_thumbnail:
+                        items:
+                            -
+                                method: cover
+                                arguments:
+                                    width: 600
+                                    height: 900
+                                    positioning: center
+                                    forceResize: false
+                        medias:
+                            '(min-width: 1440px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 1700
+                                        height: 1000
+                                        positioning: center
+                                        forceResize: false
+                            '(min-width: 1280px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 1500
+                                        height: 860
+                                        positioning: center
+                                        forceResize: false
+                            '(min-width: 992px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 1200
+                                        height: 580
+                                        positioning: center
+                                        forceResize: false
+                            '(min-width: 768px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 1000
+                                        height: 1400
+                                        positioning: center
+                                        forceResize: false
+                            '(min-width: 576px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 800
+                                        height: 1200
+                                        positioning: center
+                                        forceResize: false
+                        name: fullscreen_thumbnail
+                        description: ''
+                        group: ''
+                        format: SOURCE
+                        quality: 85
+                        highResolution: null
+                        preserveColor: false
+                        preserveMetaData: false
+                        rasterizeSVG: false
+                        downloadable: false
+                        modificationDate: 1701260410
+                        creationDate: 1701257692
+                        preserveAnimation: false

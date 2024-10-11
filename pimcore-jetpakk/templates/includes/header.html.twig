@@ -1,0 +1,179 @@
+{% set languages = [
+    {
+        code: 'de',
+        url: '/'
+    },
+    {
+        code: 'en',
+        url: '/en'
+    }
+] %}
+
+{% if editmode %}
+    <link rel="stylesheet" href="/assets/css/app.css" />
+    <script src="/assets/js/app.js" defer></script>
+{% endif %}
+
+{% set navStartNode = document.getProperty('navigationRoot') %}
+{% if not navStartNode is instanceof('\\Pimcore\\Model\\Document\\Page') %}
+    {% if pimcore_site_is_request() %}
+        {% set site = pimcore_site_current() %}
+        {% set navStartNode = site.getRootDocument() %}
+    {% else %}
+        {% set navStartNode = pimcore_document(1) %}
+    {% endif %}
+{% endif %}
+
+{% set mainNavigation = pimcore_build_nav({
+    active: document,
+    root: navStartNode
+}) %}
+
+{% set menuRenderer = pimcore_nav_renderer('menu') %}
+
+{% block metanav %}
+    <nav class="meta-nav">
+        <div class="container-standard">
+            {% block metanav_langswitcher %}
+            {% set currentLang = app.request.locale %}
+
+            <nav class="language-switcher">
+                <ul class="list-unstyled d-flex gap-1">
+                    {% for lang in languages %}
+                        {% set code = lang.code|default(false) %}
+                        {% set url = lang.url|default(false) %}
+                        {% if code and url %}
+                            {% set isActive = code == currentLang %}
+                            <li>
+                                <a class="{{ isActive ? 'active' : '' }}" href="{{- url -}}">{{- code -}}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </nav>
+            {% endblock  %}
+        </div>
+    </nav>
+{% endblock  %}
+
+{% block header %}
+    <header class="sticky-top">
+        {% block navbar %}
+            <nav class="navbar navbar-expand-lg">
+                <div class="container-standard">
+                    {% block navbarBrand %}
+                        {% set navbarLogo =
+                            pimcore_image(
+                                'navbar-logo',
+                                {
+                                    thumbnail: 'header_logo',
+                                    width: 200
+                                }
+                            )
+                        %}
+                        <a class="navbar-brand" href="/">{{ navbarLogo|raw }}</a>
+                    {% endblock %}
+                    {% block navbarButton %}
+                        <button class="d-lg-none btn"
+                            type="button"
+                            data-bs-toggle="offcanvas"
+                            data-bs-target="#offcanvasNavbar"
+                            aria-controls="offcanvasNavbar">
+                            {{ icon('menu-24') }}
+                        </button>
+                    {% endblock %}
+                    {% block navbarOffcanvas %}
+                        <div class="offcanvas offcanvas-end"
+                            tabindex="-1"
+                            id="offcanvasNavbar"
+                            aria-labelledby="offcanvasNavbarLabel">
+                            <div class="offcanvas-header">
+                                <h5 class="offcanvas-title" id="offcanvasNavbarLabel">
+                                    Menü
+                                </h5>
+                                <button type="button"
+                                    class="btn-close text-reset"
+                                    data-bs-dismiss="offcanvas"
+                                    aria-label="Close">
+
+                                </button>
+                            </div>
+                            <div class="offcanvas-body">
+                                <ul class="navbar-nav">
+                                    {% for page in mainNavigation %}
+                                        {% if page.isVisible() and menuRenderer.accept(page) %}
+                                            <li class="nav-item {{
+                                                page.hasVisiblePages
+                                                    ? 'dropdown'
+                                                }}">
+                                                {% set url = page.getHref() %}
+                                                {% set navLink %}
+                                                    <a class="nav-link {{
+                                                        page.active
+                                                            ? 'active'
+                                                            : ''
+                                                        }}"
+                                                        {{ page.active ? 'aria-current="page"' }}
+                                                        href="{{ url }}">
+                                                        {{ page.getLabel() }}
+                                                    </a>
+                                                {% endset %}
+                                                {% set navDropdown %}
+                                                    <a class="nav-link {{
+                                                        page.active
+                                                            ? 'active'
+                                                            : ''
+                                                        }} dropdown-toggle"
+                                                        id="{{ page.getLabel() }}"
+                                                        role="button"
+                                                        data-bs-toggle="dropdown"
+                                                        aria-expanded="false"
+                                                        href="#">
+                                                        {{ page.getLabel() }}
+                                                    </a>
+                                                {% endset %}
+
+
+                                                {% if page.hasVisiblePages %}
+                                                    {{ navDropdown|raw }}
+                                                    <ul class="dropdown-menu"
+                                                        aria-labelledby="{{ page.getLabel() }}">
+                                                        {% for child in page.getPages() %}
+                                                            {% set url = child.getHref() %}
+                                                            {% if
+                                                                child.isVisible()
+                                                                    and menuRenderer.accept(
+                                                                        child
+                                                                    ) %}
+                                                                <li>
+                                                                    <a class="dropdown-item {{
+                                                                        child.active
+                                                                            ? 'active'
+                                                                            : ''
+                                                                        }}"
+                                                                        {{
+                                                                        child.active
+                                                                            ? 'aria-current="page"'
+                                                                        }}
+                                                                        href="{{ url }}">
+                                                                        {{ child.getLabel() }}
+                                                                    </a>
+                                                                </li>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </ul>
+                                                {% else %}
+                                                    {{ navLink|raw }}
+                                                {% endif %}
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    {% endblock %}
+                </div>
+            </nav>
+        {% endblock %}
+    </header>
+{% endblock %}

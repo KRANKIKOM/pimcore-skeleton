@@ -1,0 +1,21 @@
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                definitions:
+                    jetpakk-placeholder:
+                        items: {  }
+                        medias: {  }
+                        name: jetpakk-placeholder
+                        description: ''
+                        group: ''
+                        format: SOURCE
+                        quality: 10
+                        highResolution: !!float 0
+                        preserveColor: false
+                        preserveMetaData: false
+                        rasterizeSVG: false
+                        downloadable: false
+                        modificationDate: 1686574470
+                        creationDate: 1686574464
+                        preserveAnimation: false

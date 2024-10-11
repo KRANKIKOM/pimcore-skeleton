@@ -1,0 +1,47 @@
+{#
+    parameters:
+    - uid (required)
+    - rowClasses "string of additional classes"
+    - socials [array of strings]
+      example: ['facebook', 'instagram', 'youtube', 'xing', 'mail', 'web', 'linkedin']
+#}
+
+{% set socials = socials|default(false) %}
+
+{% apply spaceless %}
+{% if (uid|default(false)) and (socials|default(false)) %}
+    {% set hasAtLeastOneBtn = false %}
+    {% for social in socials %}
+        {% set btn = pimcore_button(uid ~ '-socialmedia-' ~ social) %}
+        {% if has(btn) %}
+            {% set hasAtLeastOneBtn = true %}
+        {% endif %}
+    {% endfor %}
+
+    {% if hasAtLeastOneBtn %}
+        <div class="{{ classes(['row', rowClasses|default(false)]) }}">
+            {% for social in socials %}
+                {% if social in socials %}
+                    {%- set btn =
+                        pimcore_button(
+                            uid ~ '-socialmedia-' ~ social,
+                            {
+                                force: {
+                                    text: '',
+                                    btnStyle: '',
+                                    btnType: 'icon',
+                                    btnIcon: social ~ '-24'
+                                },
+                                disable: ['text', 'btnIcon', 'btnIconPos', 'btnType', 'btnStyle']
+                            }
+                        )
+                    -%}
+                    {% if has(btn) %}
+                        <div class="col-auto">{{ btn|raw }}</div>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endif %}
+{% endapply %}

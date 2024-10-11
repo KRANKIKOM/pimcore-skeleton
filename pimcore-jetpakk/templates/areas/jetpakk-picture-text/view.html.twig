@@ -1,0 +1,102 @@
+{% extends '@PimcoreJetpakk/atomic/data_wrapper.html.twig' %}
+
+{% block brick_include %}
+    {% set picturePosition = pimcore_select('picturePosition').getData()|default('') %}
+    {% set pictureAspectRatio = pimcore_select('pictureAspectRatio').getData()|default('fixed') %}
+    {% set lead =
+        pimcore_input(
+            'lead',
+            {
+                placeholder: 'Lead'
+            }
+        )
+    %}
+    {% set headline =
+        pimcore_headline(
+            'headline',
+            {
+                placeholder: 'Headline'
+            }
+        )
+    %}
+    {% set text =
+        pimcore_wysiwyg(
+            'text',
+            {
+                placeholder: lorem(80),
+                class: 'w-100'
+            }
+        )
+    %}
+    {% set button = pimcore_button('button') %}
+    {% set picture_text_fixed_thumbnail = picture_text_fixed_thumbnail is defined
+        ? picture_text_fixed_thumbnail
+        : 'picture_text_fixed_thumbnail'
+    %}
+    {% set picture_text_responsive_thumbnail = picture_text_responsive_thumbnail is defined
+        ? picture_text_responsive_thumbnail
+        : 'picture_text_responsive_thumbnail'
+    %}
+    {% set image =
+        pimcore_image(
+            'image'
+        )
+    %}
+    {% set caption = pimcore_input('caption') %}
+    {% set captionlink = pimcore_link('captionlink')%}
+
+    <section class="{{ el_spacing }} picture-text">
+        <div class="container-standard">
+            <div class="row {{ pictureAspectRatio == 'fixed' ? 'align-items-center' }} {{
+                picturePosition == 'picture-right' ? 'flex-row-reverse'
+                }}">
+                {% block ptPicture %}
+                    {% if has(image) or editmode %}
+                        <div class="col-md-6">
+                            <div class="ratio {{
+                                pictureAspectRatio == 'fixed'
+                                    ? 'ratio-1x1'
+                                    : 'picture--responsive'
+                                }}">
+                                    {% if editmode %}
+                                        {{ image|raw }}
+                                    {% else %}
+                                        {% if has(image) and pictureAspectRatio == 'fixed' %}
+                                            {{ image.thumbnail(picture_text_fixed_thumbnail).html|raw }}
+                                        {% elseif has(image) and pictureAspectRatio == 'responsive' %}
+                                            {{ image.thumbnail(picture_text_responsive_thumbnail).html|raw }}
+                                        {% endif %}
+                                    {% endif %}
+                            </div>
+                            {% block ptCaption %}
+                                {% if has(caption) or has(captionlink) %}
+                                    <div class="px-4 mt-1">
+                                        {{ caption | raw }}
+                                        {{ captionlink | raw }}
+                                    </div>
+                                {% endif %}
+                            {% endblock %}
+                        </div>
+                    {% endif %}
+                {% endblock %}
+                {% block ptText %}
+                    <div class="{{ has(image) or editmode ? 'col-md-6 ' }}py-5">
+                        {{
+                            include(
+                                '@PimcoreJetpakk/atomic/organisms/typography.html.twig',
+                                {
+                                    lead: lead,
+                                    headline: headline,
+                                    text: text,
+                                    button: button,
+                                    variant: picturePosition
+                                },
+                                false
+                            )
+                        }}
+                    </div>
+                {% endblock %}
+            </div>
+        </div>
+    </section>
+{% endblock %}

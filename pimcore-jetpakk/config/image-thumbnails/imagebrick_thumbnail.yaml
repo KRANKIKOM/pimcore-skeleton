@@ -1,0 +1,56 @@
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                definitions:
+                    imagebrick_thumbnail:
+                        items:
+                            -
+                                method: scaleByWidth
+                                arguments:
+                                    width: 500
+                                    forceResize: false
+                        medias:
+                            '(min-width: 1440px)':
+                                -
+                                    method: scaleByWidth
+                                    arguments:
+                                        width: 1800
+                                        forceResize: false
+                            '(min-width: 1240px)':
+                                -
+                                    method: scaleByWidth
+                                    arguments:
+                                        width: 1200
+                                        forceResize: false
+                            '(min-width: 992px)':
+                                -
+                                    method: scaleByWidth
+                                    arguments:
+                                        width: 1000
+                                        forceResize: false
+                            '(min-width: 768px)':
+                                -
+                                    method: scaleByWidth
+                                    arguments:
+                                        width: 900
+                                        forceResize: false
+                            '(min-width: 576px)':
+                                -
+                                    method: scaleByWidth
+                                    arguments:
+                                        width: 650
+                                        forceResize: false
+                        name: imagebrick_thumbnail
+                        description: ''
+                        group: ''
+                        format: SOURCE
+                        quality: 85
+                        highResolution: null
+                        preserveColor: false
+                        preserveMetaData: false
+                        rasterizeSVG: false
+                        downloadable: false
+                        modificationDate: 1701261452
+                        creationDate: 1701261122
+                        preserveAnimation: false

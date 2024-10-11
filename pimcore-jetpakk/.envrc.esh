@@ -1,0 +1,96 @@
+if [ -n "$ZSH_VERSION" ]; then emulate -L bash; fi
+
+vercomp () {
+    if [[ $1 == $2 ]]
+    then
+        return 0
+    fi
+    local IFS=.
+    local i ver1=($1) ver2=($2)
+    # fill empty fields in ver1 with zeros
+    for ((i=${#ver1[@]}; i<${#ver2[@]}; i++))
+    do
+        ver1[i]=0
+    done
+    for ((i=0; i<${#ver1[@]}; i++))
+    do
+        if [[ -z ${ver2[i]} ]]
+        then
+            # fill empty fields in ver2 with zeros
+            ver2[i]=0
+        fi
+        if ((10#${ver1[i]} > 10#${ver2[i]}))
+        then
+            return 1
+        fi
+        if ((10#${ver1[i]} < 10#${ver2[i]}))
+        then
+            return 2
+        fi
+    done
+    return 0
+}
+
+detect_dockerdesktop() {
+    SERVER_VERSION=$(docker version -f "{{.Server.Version}}")
+    if [ -z "$SERVER_VERSION" ]; then
+        echo "Warning: docker not installed?!"
+        return 0
+    fi
+    REQUIRED_DOCKER_VERSION_FOR_NATIVE_DOCKER="20.10.3"
+    vercomp $SERVER_VERSION $REQUIRED_DOCKER_VERSION_FOR_NATIVE_DOCKER
+    VERCOMP_RESULT="$?"
+    if [ "$VERCOMP_RESULT" == "0" ] ||  [ "$VERCOMP_RESULT" == "1" ]; then
+        return 1
+    fi
+    return 0
+}
+
+detect_orbstack() {
+    docker version | grep -i orbstack >/dev/null 2>&1
+
+    if [ "$?" == "0" ]; then
+        return 1
+    fi
+    return 0
+}
+
+
+if [ "$USER" != "gitpod" ]; then
+
+    detect_dockerdesktop
+    if [ "$?" ]; then
+        export  PIMCORE_DEVSETUP_NATIVEDOCKER="1"
+    fi
+    detect_orbstack
+    if [ "$?" ]; then
+        export  PIMCORE_DEVSETUP_NATIVEDOCKER="1"
+    fi
+
+    if [ "$PIMCORE_DEVSETUP_NATIVEDOCKER" == "0" ]; then
+        echo "*** WARNING: Vagrant is no longer supported but no suitable Docker version found!"
+    fi
+else
+    export PIMCORE_DEVSETUP_GITPOD="1"
+    export PIMCORE_DEVSETUP_NATIVEDOCKER="1"
+fi
+
+if docker compose version >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+
+else
+    echo "Error: Docker Compose is not installed." >&2
+    exit 1
+fi
+
+
+export DOCKER_COMPOSE_CMD
+
+export DOCKER_IMAGE_NAME="<%=$WEB_NAME%>"
+export DOCKER_IMAGE_PROJECT="<%=$WEB_NAME%>"
+export WEB_NAME="<%=$WEB_NAME%>"
+export FRONTEND_BUILD_FLAVOUR=webpack
+export PIMCORE_IMAGE_LABEL="<%=$PIMCORE_IMAGE_LABEL%>"
+export MYSQL_LOCAL_PORT="<%=$MYSQL_LOCAL_PORT%>"

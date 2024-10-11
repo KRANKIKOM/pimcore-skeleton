@@ -1,0 +1,44 @@
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                definitions:
+                    picture_text_fixed_thumbnail:
+                        items:
+                            -
+                                method: cover
+                                arguments:
+                                    width: 530
+                                    height: 530
+                                    positioning: center
+                                    forceResize: false
+                        medias:
+                            '(min-width: 768px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 620
+                                        height: 620
+                                        positioning: center
+                                        forceResize: false
+                            '(min-width: 576px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 720
+                                        height: 720
+                                        positioning: center
+                                        forceResize: false
+                        name: picture_text_fixed_thumbnail
+                        description: ''
+                        group: ''
+                        format: SOURCE
+                        quality: 85
+                        highResolution: null
+                        preserveColor: false
+                        preserveMetaData: false
+                        rasterizeSVG: false
+                        downloadable: false
+                        modificationDate: 1702550937
+                        creationDate: 1702485213
+                        preserveAnimation: false

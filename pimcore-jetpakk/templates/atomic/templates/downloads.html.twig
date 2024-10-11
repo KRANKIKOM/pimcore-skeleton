@@ -1,0 +1,29 @@
+{% set dll_repeater = dll_repeater is defined
+    ? dll_repeater
+    : pimcore_block(
+        'dll_repeater',
+        {
+            default: 1
+        }
+    )
+%}
+
+{% set dll_headline = dll_headline is defined
+    ? dll_headline
+    : pimcore_headline(
+        'headline',
+        {
+            placeholder: 'Headline',
+            headlineClass: 'mb-0',
+            default: {
+                headlineSeo: 'h2'
+            }
+        }
+    )
+%}
+
+{% if dl_variant == 'list' %}
+    {{ include('@PimcoreJetpakk/atomic/templates/downloads-list.html.twig') }}
+{% elseif dl_variant == 'accordion' %}
+    {{ include('@PimcoreJetpakk/atomic/templates/downloads-accordion.html.twig') }}
+{% endif %}

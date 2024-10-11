@@ -1,0 +1,48 @@
+{% block usps_outside %}
+    {% set usps_alignment = usps_alignment is defined ? usps_alignment : 'left' %}
+    {% set usps_columns = usps_columns is defined ? usps_columns : 4 %}
+
+    {% set usps_repeater = usps_repeater is defined
+        ? usps_repeater
+        : pimcore_block(
+            'repeater',
+            {
+                manual: true,
+                reload: true,
+                default: 1
+            }
+        )
+    %}
+
+    {% set usps_row_classes = [
+        'row gy-5',
+        usps_columns == 4 ? 'row-cols-2',
+        'row-cols-lg-' ~ usps_columns,
+        usps_alignment == 'center' ? 'justify-content-center'
+    ] %}
+
+    {% block usps %}
+        <section class="{{ classes([el_spacing]) }}">
+            <div class="container-xxl usps">
+                <div class="row justify-content-center">
+                    <div class="col-lg-10">
+                        {% do usps_repeater.start() %}
+                        <div class="{{ classes(usps_row_classes) }}">
+                            {% for b in usps_repeater.iterator %}
+                                {% do usps_repeater.blockConstruct() %}
+                                <div class="col">
+                                    {% do usps_repeater.blockStart() %}
+
+                                    {{ include('@PimcoreJetpakk/atomic/organisms/usp.html.twig') }}
+                                    {% do usps_repeater.blockEnd() %}
+                                </div>
+                                {% do usps_repeater.blockDestruct() %}
+                            {% endfor %}
+                        </div>
+                        {% do usps_repeater.end() %}
+                    </div>
+                </div>
+            </div>
+        </section>
+    {% endblock %}
+{% endblock %}

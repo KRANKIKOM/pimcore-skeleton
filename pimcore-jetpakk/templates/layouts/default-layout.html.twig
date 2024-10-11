@@ -1,0 +1,30 @@
+{% extends '@PimcoreJetpakk/layouts/_layouts_base.html.twig' %}
+
+{% block favicon %}
+    {% if document.getProperty('favicon') is defined and document.getProperty('favicon') is not null %}
+        {% set favicon = document.getProperty('favicon') %}
+        <link rel="icon" type="{{ favicon.getMimeType() }}" href="{{ favicon.getFullPath() }}" />
+    {% endif %}
+{% endblock %}
+
+{% block header %}
+    {% if document.getProperty('header') is defined and document.getProperty('header') is not null %}
+        {{ pimcore_inc(document.getProperty('header'), [], false)  }}
+    {% endif %}
+{% endblock %}
+
+{% block before_content %}
+    {{ pimcore_areablock('before_content', {
+        allowed: ['jetpakk-keyvisual']
+    }) }}
+{% endblock %}
+
+{% block content %}
+    {{ pimcore_areablock('content') }}
+{% endblock %}
+
+{% block footer %}
+    {% if document.getProperty('footer') is defined and document.getProperty('footer') is not null %}
+        {{ pimcore_inc(document.getProperty('footer')) }}
+    {% endif %}
+{% endblock %}

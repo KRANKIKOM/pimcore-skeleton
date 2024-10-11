@@ -1,0 +1,27 @@
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                definitions:
+                    contain-16x9-1280:
+                        items:
+                            -
+                                method: contain
+                                arguments:
+                                    width: 1280
+                                    height: 720
+                                    forceResize: true
+                        medias: {  }
+                        name: contain-16x9-1280
+                        description: ''
+                        group: ''
+                        format: SOURCE
+                        quality: 85
+                        highResolution: 0.0
+                        preserveColor: false
+                        preserveMetaData: false
+                        rasterizeSVG: false
+                        downloadable: false
+                        modificationDate: 1657562164
+                        creationDate: 1657562142
+                        preserveAnimation: false

@@ -1,0 +1,17 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: media-data
+  labels:
+    app: pimcore-data
+spec:
+  storageClassName: hostpath
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: media-web-data
+  labels:
+    app: pimcore-data
+spec:
+  storageClassName: hostpath

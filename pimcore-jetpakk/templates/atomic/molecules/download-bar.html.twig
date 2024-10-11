@@ -1,0 +1,72 @@
+{% set dlb_link =
+    pimcore_relation(
+        'dlb_link',
+        {
+            types: ['asset']
+        }
+    )
+%}
+
+{% set icon_fallback = 'file-earmark-binary' %}
+
+{% set icons_by_mimetype = {
+    'application/pdf': 'file-earmark-pdf',
+    'application/zip': 'file-earmark-zip',
+    'text/': 'file-earmark-text',
+    'image/': 'file-earmark-image',
+    'video/': 'file-earmark-play',
+    'audio/': 'file-earmark-music'
+} %}
+
+{% set icon = icon_fallback %}
+{% set extension = false %}
+{% set filesize = false %}
+{% set filename = false %}
+{% if has(dlb_link) and dlb_link.element %}
+    {% for mimetype, mimetype_icon in icons_by_mimetype %}
+        {% if mimetype in dlb_link.element.mimetype %}
+            {% set icon = mimetype_icon %}
+        {% endif %}
+    {% endfor %}
+
+    {% set filename = dlb_link.element.filename|split('.')|first %}
+    {% if '.' in dlb_link.element.filename %}
+        {% set extension = dlb_link.element.filename|split('.')|last %}
+    {% endif %}
+    {% if dlb_link.element.getFileSize() %}
+        {% set filesize = filesize(dlb_link.element.getFileSize()) %}
+    {% endif %}
+{% endif %}
+
+{% set dl_button_text = dl_button_text is defined ? dl_button_text : 'Download' %}
+
+{% if has(dlb_link) %}
+    <div class="download-bar">
+        <div class="download-bar__icon">{{ icon(icon) }}</div>
+        <div class="download-bar__description" {{ filename ? 'title=' ~ filename }}>
+            {% if editmode %}
+                {{ dlb_link|raw }}
+            {% elseif dlb_link.element|default(false) %}
+                {% if filename %}
+                    <span class="download-bar__description__title">{{ filename }}</span>
+                {% endif %}
+                {% if (extension|default(false)) or (filesize|default(false)) %}
+                    <small class="download-bar__description__meta">
+                        {%- if extension|default(false) -%}
+                            <span class="extension">{{ extension }}</span>
+                            {{- filesize|default(false) ? ', ' : '' -}}
+                        {%- endif -%}
+                        {%- if filesize|default(false) -%}
+                            <span class="filesize">{{ filesize }}</span>
+                        {%- endif -%}
+                    </small>
+                {% endif %}
+            {% endif %}
+        </div>
+        <div class="download-bar__button">
+            <a class="btn btn-outline-primary" href="{{ dlb_link.getFullPath() }}" download>
+                {{ dl_button_text }}
+            </a>
+        </div>
+    </div>
+{% endif %}

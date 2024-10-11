@@ -1,0 +1,21 @@
+#
+### START: Cache Layer for vendor
+###
+FROM composer:2.0.8 AS build
+
+ENV COMPOSER_ALLOW_SUPERUSER 1
+ENV COMPOSER_MEMORY_LIMIT -1
+ENV PATH="${PATH}:/root/.composer/vendor/bin"
+
+
+COPY composer.json composer.lock /app/
+
+RUN set -eux; \
+    mkdir -p -m777 /var/www/.composer; \
+    COMPOSER_AUTH="{\"http-basic\": {\"repo.packagist.com\": {\"username\": \"krankikom\", \"password\": \"c8a7ecca281bc7a6682a01fc5cb406a73aabf86ed5ffa81285049e650b41\"}}}" composer install --no-dev --no-autoloader --ignore-platform-reqs --no-scripts
+
+
+
+###
+### END: Cache Layer for vendor
+###

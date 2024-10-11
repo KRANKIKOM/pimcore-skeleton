@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pimcore-website
+  labels:
+    app: pimcore-website
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 350M
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: pimcore-dev.m3.krankikom.de
+      http:
+        paths:
+          - backend:
+              service:
+                name: pimcore-varnish
+                port:
+                  number: 80
+            path: /.*(jpg|webp|js|css|png|jpeg|svg|woff2)$
+            pathType: ImplementationSpecific
+          - backend:
+              service:
+                name: pimcore-website-fpm
+                port:
+                  number: 80
+            path: /.*
+            pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - pimcore-dev.m3.krankikom.de
+    secretName: pimcore-website-tls-cert
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pimcore-website
+spec:
+  dnsNames:
+  - pimcore-dev.m3.krankikom.de
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: letsencrypt
+  secretName: pimcore-website-tls-cert

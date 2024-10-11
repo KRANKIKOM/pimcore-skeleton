@@ -1,0 +1,24 @@
+{% extends '@PimcoreJetpakk/atomic/templates/accordion.html.twig' %}
+
+{% block accordion_outside %}
+    {% set acc_repeater = dll_repeater %}
+    {% set acc_headline = dll_headline %}
+    {% set dls_headline = false %}
+    {{ parent() }}
+{% endblock %}
+
+{% block accordion_inside %}
+    {% set acc_inside_headline =
+        pimcore_input(
+            'sectionHeadline',
+            {
+                placeholder: 'Sektionsüberschrift'
+            }
+        )
+    %}
+    {{ parent() }}
+{% endblock %}
+
+{% block accordion_inside_content_inner %}
+    {% include '@PimcoreJetpakk/atomic/organisms/downloads-section.html.twig' %}
+{% endblock %}

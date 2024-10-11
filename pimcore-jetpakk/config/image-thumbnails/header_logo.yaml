@@ -1,0 +1,26 @@
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                definitions:
+                    header_logo:
+                        items:
+                            -
+                                method: scaleByWidth
+                                arguments:
+                                    width: 500
+                                    forceResize: true
+                        medias: {  }
+                        name: header_logo
+                        description: ''
+                        group: ''
+                        format: SOURCE
+                        quality: 85
+                        highResolution: null
+                        preserveColor: false
+                        preserveMetaData: false
+                        rasterizeSVG: false
+                        downloadable: false
+                        modificationDate: 1728038112
+                        creationDate: 1728038089
+                        preserveAnimation: false

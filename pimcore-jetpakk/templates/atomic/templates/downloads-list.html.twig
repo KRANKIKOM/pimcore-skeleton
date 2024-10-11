@@ -1,0 +1,11 @@
+<div class="{{ classes([el_spacing]) }}">
+    <div class="container-standard">
+        <div class="downloads-list">
+            {{ dll_headline|raw }}
+            {% for j in dll_repeater.iterator %}
+                {% set index = dll_repeater.current %}
+                {% include '@PimcoreJetpakk/atomic/organisms/downloads-section.html.twig' %}
+            {% endfor %}
+        </div>
+    </div>
+</div>

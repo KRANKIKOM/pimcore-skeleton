@@ -1,0 +1,61 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+Vagrant.require_version ">= 2.0.1"
+
+
+
+Vagrant.configure("2") do |config|
+
+
+   uname = `uname -a`.chomp!
+   puts "Uname: '#{uname}'"
+
+   if not uname.include? "ARM64"
+      puts "Intel"
+      config.vm.provider "virtualbox" do |v| 
+         v.memory = 8*1024
+         config.vm.box = "ubuntu-20.04"
+         config.vm.box_url = "http://ubuntu-mirror.krankikom.de/vagrant/ubuntu/20.04.json"  
+         config.vm.synced_folder ".", "/opt/www",
+           :type => :nfs,
+            :mount_options => ['nolock,vers=3,tcp,noatime,actimeo=1']
+      end
+   else
+      puts "ARM"
+      config.vm.provider "parallels" do |v| 
+         config.vm.box = "mpasternak/focal64-arm"
+         config.vm.synced_folder ".", "/opt/www", mount_options: ["uid=33", "gid=33"]
+         #v.update_guest_tools = true
+         v.cpus = 4
+         v.memory = 8*1024
+      end
+   end 
+
+   
+
+  # https://www.elastic.co/guide/en/elasticsearch/reference/current/docker.html#docker-prod-prerequisites
+  Vagrant.configure("2") do |config|
+    config.vm.provision "shell", inline: "sysctl -w vm.max_map_count=262144"
+  end
+
+  # Fix for the cloud-image of ubuntu >= 19.10
+  config.vm.provider 'virtualbox' do |v|
+    v.customize ["modifyvm", :id, "--uart1", "0x3F8", "4"]
+    v.customize ["modifyvm", :id, "--uartmode1", "file", File::NULL]
+  end
+
+  if Vagrant.has_plugin?("vagrant-hostsupdater")
+    config.hostsupdater.remove_on_suspend = true
+    config.hostsupdater.aliases = ENV['VAGRANT_DNS'].split(',')
+  else
+    puts "Please install: vagrant plugin install vagrant-hostsupdater"
+    exit(1)
+  end
+
+  config.vm.network :private_network, ip: ENV['VAGRANT_IP']
+
+  config.vm.provision "shell", inline: "bash /opt/www/pimcore-devsetup/first-setup-docker.sh"
+
+  #config.berkshelf.enabled = false
+
+end

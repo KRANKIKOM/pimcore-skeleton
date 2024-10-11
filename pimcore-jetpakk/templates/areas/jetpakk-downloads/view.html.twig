@@ -1,0 +1,10 @@
+{% extends '@PimcoreJetpakk/atomic/data_wrapper.html.twig' %}
+
+{% block brick_wrapper %}
+    {% set dl_variant = pimcore_select('variant').getData()|default('list') %}
+    {{ parent() }}
+{% endblock %}
+
+{% block brick_include %}
+    {{ include('@PimcoreJetpakk/atomic/templates/downloads.html.twig') }}
+{% endblock %}

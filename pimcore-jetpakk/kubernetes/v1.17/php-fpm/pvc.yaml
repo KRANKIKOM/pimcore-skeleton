@@ -1,0 +1,27 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: media-data
+  labels:
+    app: pimcore-data
+spec:
+  accessModes:
+    - "ReadWriteMany"
+  storageClassName: managed-nfs-storage
+  resources:
+    requests:
+      storage: "10Gi"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: media-web-data
+  labels:
+    app: pimcore-data
+spec:
+  accessModes:
+    - "ReadWriteMany"
+  storageClassName: managed-nfs-storage
+  resources:
+    requests:
+      storage: "10Gi"

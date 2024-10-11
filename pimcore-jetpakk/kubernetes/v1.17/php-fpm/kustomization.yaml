@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- php-fpm.yaml
+- pvc.yaml
+- pimcore-migration.yaml
+- cron-maintenance-job.yaml
+- maintenance-consumer.yaml

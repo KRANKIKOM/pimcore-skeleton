@@ -1,0 +1,114 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pimcore-install
+spec:
+  template:
+    spec:
+      containers:
+      - name: pimcore-install
+        image: "k-registry.krankikom.de/krankikom/pimcore-website:master"
+        #imagePullPolicy: "Never"
+        command: ["/bin/sh", "-c"]
+        args: 
+          - |
+            # Function to check if Pimcore is installed
+            check_pimcore_installation() {
+                # Capture both the output and exit status of the MySQL command
+                MYSQL_OUTPUT=$(mysql -u "${PIMCORE_INSTALL_MYSQL_USERNAME}" \
+                                     -p"${PIMCORE_INSTALL_MYSQL_PASSWORD}" \
+                                     -h "${MYSQL_HOST}" \
+                                     "${MYSQL_DB}" \
+                                     -e "SELECT COUNT(*) FROM assets LIMIT 1" \
+                                     --skip-column-names 2>&1)
+                MYSQL_EXIT_STATUS=$?
+            
+                if [ $MYSQL_EXIT_STATUS -eq 0 ]; then
+                    # MySQL command succeeded, table exists
+                    INSTALLED=$(echo "$MYSQL_OUTPUT" | tr -d '[:space:]')
+                    if [ "$INSTALLED" -gt 0 ]; then
+                        echo "Pimcore installation detected with data in the 'assets' table."
+                        return 0
+                    else
+                        echo "Pimcore installation detected, but the 'assets' table is empty."
+                        return 0
+                    fi
+                elif echo "$MYSQL_OUTPUT" | grep -q "Table.*doesn't exist"; then
+                    # Table doesn't exist, Pimcore is not installed
+                    echo "Pimcore installation not detected. The 'assets' table does not exist."
+                    return 1
+                elif [ $MYSQL_EXIT_STATUS -eq 1 ]; then
+                    # Other SQL error
+                    echo "ERROR: SQL error occurred. MySQL output: $MYSQL_OUTPUT"
+                    return 2
+                elif [ $MYSQL_EXIT_STATUS -eq 2 ]; then
+                    # MySQL command failed due to a connection error
+                    echo "ERROR: Unable to connect to the database. Please check your credentials and connection settings."
+                    return 3
+                else
+                    # MySQL command failed for an unknown reason
+                    echo "ERROR: MySQL exited with an unknown error (status $MYSQL_EXIT_STATUS). Output: $MYSQL_OUTPUT"
+                    return 4
+                fi
+            }
+
+            check_pimcore_installation
+            
+            if [ $? -eq 1 ]; then
+                echo "**** Changing var/ user+group ****";
+                chown -R www-data var/;
+                chgrp -R www-data var/;
+                echo "**** Changing public/var/ user+group ****";
+                chown -R www-data public/var/;
+                chgrp -R www-data public/var/;
+
+                echo "**** Running pimcore install ****";
+                ./vendor/bin/pimcore-install --mysql-host-socket=${MYSQL_HOST} --mysql-port=${MYSQL_PORT} --mysql-database=${MYSQL_DB} --no-interaction;
+
+                echo "**** Installing bundles ****";
+                ./pimcore-devsetup/first-install-pimcore-bundles.sh;
+
+                echo "**** Updating database schema";
+                ./bin/console doctrine:schema:update --force;
+
+                echo "**** Running migrations ****";
+                ./bin/console doctrine:migrations:migrate;
+            else
+                echo "**** Pimcore already installed ****";
+            fi;
+
+        envFrom: #--ignore-existing-config
+        - configMapRef:
+            name: pimcore-config
+        env:
+        - name: PIMCORE_INSTALL_MYSQL_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: pimcore-config
+              key: MYSQL_USER
+        - name: PIMCORE_INSTALL_MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: config-secret
+              key: mysql-password
+        - name: PIMCORE_INSTALL_ADMIN_USERNAME
+          value: "admin"
+        - name: PIMCORE_INSTALL_ADMIN_PASSWORD
+          value: "admin"
+        volumeMounts:
+          - name: media-web-data
+            mountPath: /var/www/html/public/var
+          - name: media-data
+            mountPath: /var/www/html/var
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: "kk-registry-secret"
+      - name: "github"
+      volumes:
+      - name: media-data
+        persistentVolumeClaim:
+          claimName: media-data
+      - name: media-web-data
+        persistentVolumeClaim:
+          claimName: media-web-data
+  backoffLimit: 300

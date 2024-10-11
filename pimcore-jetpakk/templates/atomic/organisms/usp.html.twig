@@ -1,0 +1,93 @@
+{% set usp_thumbnail = usp_thumbnail is defined ? usp_thumbnail : 'jetpakk-placeholder' %}
+{% set usp_variant = usp_variant is defined ? usp_variant : 'icon' %}
+
+{% set usp_icon = usp_icon is defined
+    ? usp_icon
+    : pimcore_image(
+        'usp_icon',
+        {
+            required: usp_variant == 'icon',
+            thumbnail: usp_thumbnail
+        }
+    )
+%}
+
+{% set usp_icon_svg = usp_icon_svg is defined
+    ? usp_icon_svg
+    : pimcore_image(
+        'usp_icon',
+        {
+            required: usp_variant == 'icon'
+        }
+    )
+%}
+
+{% set usp_count = usp_count is defined
+    ? usp_count
+    : pimcore_numeric(
+        'usp_count',
+        {
+            required: usp_variant == 'count',
+            minValue: 0
+        }
+    )
+%}
+{% set usp_title = usp_title is defined
+    ? usp_title
+    : pimcore_input(
+        'usp_title',
+        {
+            placeholder: 'Titel',
+            nl2br: true
+        }
+    )
+%}
+{% set usp_subline = usp_subline is defined
+    ? usp_subline
+    : pimcore_textarea(
+        'usp_subline',
+        {
+            placeholder: 'Unterzeile',
+            nl2br: true
+        }
+    )
+%}
+{% set usp_link = usp_link is defined
+    ? usp_link
+    : pimcore_link(
+        'usp_link', {
+            noText: true,
+            class: 'stretched-link'
+        }
+    )
+%}
+
+<div class="usp">
+    {{ usp_link | raw }}
+    <div class="usp__head">
+        {% if usp_variant == 'icon' and has(usp_icon) %}
+            <div class="usp__head__icon ratio ratio-1x1 loading-state">
+                {% if editmode %}
+                    {{ usp_icon|raw }}
+                {% else %}
+                    {% if usp_icon.getImage().mimetype == 'image/svg+xml' %}
+                        {{ usp_icon_svg|raw }}
+                    {% else %}
+                        {{ usp_icon|raw }}
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% elseif usp_variant == 'count' and has(usp_count) %}
+            <div class="usp__head__count display-1 mb-0"><span>{{ usp_count|raw }}</span></div>
+        {% endif %}
+    </div>
+    <div class="usp__content">
+        {% if has(usp_title) %}
+            <h3 class="usp__content__title h5 mb-0">{{ usp_title|raw }}</h3>
+        {% endif %}
+        {% if has(usp_subline) %}
+            <h4 class="usp__content__subline h5 mb-0">{{ usp_subline|raw }}</h4>
+        {% endif %}
+    </div>
+
+</div>

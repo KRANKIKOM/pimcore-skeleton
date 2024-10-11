@@ -1,0 +1,148 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-exporter
+  labels:
+    app: elasticsearch-exporter
+  annotations:
+spec:
+  ports:
+  - name: metrics
+    port: 9114
+    protocol: TCP
+    targetPort: metrics
+  selector:
+    app: elasticsearch-exporter
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-exporter
+  labels:
+    app: elasticsearch-exporter
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: elasticsearch-exporter
+  template:
+    metadata:
+      labels:
+        app: elasticsearch-exporter
+    spec:
+      containers:
+      - name: metrics
+        image: "justwatch/elasticsearch_exporter:1.1.0"
+        imagePullPolicy: "IfNotPresent"
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: config-secret
+              key: mysql-root-password
+        command:
+        - 'sh'
+        - '-c'
+        - '/bin/elasticsearch_exporter'
+        - '--es.uri=http://elasticsearch:9200'
+        - '--es.indices'
+        - '--es.shards'
+        - '--es.all'
+        ports:
+        - name: metrics
+          containerPort: 9114
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+          initialDelaySeconds: 15
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: metrics
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+        resources:
+          {}
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: elasticsearch-exporter
+  labels:
+    app: elasticsearch-exporter
+spec:
+  endpoints:
+    - port: metrics
+      interval: 30s
+  namespaceSelector:
+    matchNames:
+      - krankikom-dev
+  selector:
+    matchLabels:
+      app: elasticsearch-exporter
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app: elasticsearch-monitoring
+  name: elasticsearch-monitoring-prometheus
+spec:
+  groups:
+  - name: Orthomol Elasticsearch
+    rules:
+    - record: elasticsearch_filesystem_data_used_percent
+      expr: |
+        100 * (elasticsearch_filesystem_data_size_bytes{service="elasticsearch-exporter"} - elasticsearch_filesystem_data_free_bytes{service="elasticsearch-exporter"})
+          / elasticsearch_filesystem_data_size_bytes{service="elasticsearch-exporter"}
+    - record: elasticsearch_filesystem_data_free_percent
+      expr: 100 - elasticsearch_filesystem_data_used_percent{service="elasticsearch-exporter"}
+    - alert: ElasticsearchTooFewNodesRunning
+      expr: elasticsearch_cluster_health_number_of_nodes{service="elasticsearch-exporter"} < 3
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        description: "There are only {{ $value }} < 3 ElasticSearch nodes running"
+        summary: ElasticSearch running on less than 3 nodes
+    - alert: ElasticsearchHeapTooHigh
+      expr: |
+        elasticsearch_jvm_memory_used_bytes{service="elasticsearch-exporter", area="heap"} / elasticsearch_jvm_memory_max_bytes{service="elasticsearch-exporter", area="heap"}
+          > 0.9
+      for: 15m
+      labels:
+        severity: critical
+      annotations:
+        description: "The heap usage is over 90% for 15m"
+        summary: ElasticSearch node {{ "{{ $labels.node }}" }} heap usage is high
+    - alert: ElasticsearchClusterRed
+      expr: elasticsearch_cluster_health_status{color="red"} == 1
+      for: 0m
+      labels:
+        severity: critical
+      annotations:
+        summary: Elasticsearch Cluster Red (instance {{ $labels.instance }})
+        description: "Elastic Cluster Red status\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+    - alert: ElasticsearchClusterYellow
+      expr: elasticsearch_cluster_health_status{color="yellow"} == 1
+      for: 0m
+      labels:
+        severity: warning
+      annotations:
+        summary: Elasticsearch Cluster Yellow (instance {{ $labels.instance }})
+        description: "Elastic Cluster Yellow status\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+    - alert: ElasticsearchUnassignedShards
+      expr: elasticsearch_cluster_health_unassigned_shards > 0
+      for: 0m
+      labels:
+        severity: critical
+      annotations:
+        summary: Elasticsearch unassigned shards (instance {{ $labels.instance }})
+        description: "Elasticsearch has unassigned shards\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"

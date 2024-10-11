@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: redis
+    role: master
+  name: redis-data
+spec:
+  storageClassName: hostpath
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: mysql-backup
+  labels:
+    app: mysql
+spec:
+  storageClassName: hostpath
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app: redis
+    role: master
+  name: redis-data
+spec:
+  storageClassName: hostpath
+---  
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: elasticsearch
+  name: elasticsearch
+spec:
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        storageClassName: "hostpath"
+        accessModes:
+        - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "2Gi"

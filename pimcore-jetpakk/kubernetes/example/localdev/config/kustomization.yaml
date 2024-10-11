@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: pimcore-localdev
+configMapGenerator:
+  - name: pimcore-config
+    envs:
+      - config.env
+#  - name: elasticsearch-config2
+#    literals:
+#    - CLUSTER_NAME=elasticsearch
+#    - DISCOVERY_SERVICE=elasticsearch-discovery
+#    - MINIMUM_MASTER_NODES=2
+secretGenerator:
+- name: config-secret
+  literals:
+  - mysql-root-password="mokiknark"
+  - mysql-password="pimpcore"
+generatorOptions:
+  # disableNameSuffixHash is true disables the default behavior of adding a
+  # suffix to the names of generated resources that is a hash of
+  # the resource contents.
+  disableNameSuffixHash: true

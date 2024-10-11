@@ -1,0 +1,13 @@
+{% extends '@PimcoreJetpakk/atomic/data_wrapper.html.twig' %}
+
+{% block brick_wrapper %}
+    {% set el_spacing = pimcore_select('el_spacing_bottom').getData()|default('mb-el') %}
+    {% set usp_variant = pimcore_select('variant').getData()|default('icon') %}
+    {% set usps_alignment = pimcore_select('alignment').getData()|default('left') %}
+    {% set usps_columns = pimcore_select('columns_3_4').getData()|default(4) %}
+    {{ parent() }}
+{% endblock %}
+
+{% block brick_include %}
+    {{ include('@PimcoreJetpakk/atomic/templates/usps.html.twig') }}
+{% endblock %}

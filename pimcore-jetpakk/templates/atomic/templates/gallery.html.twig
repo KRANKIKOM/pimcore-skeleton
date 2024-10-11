@@ -1,0 +1,85 @@
+{% set is_slider = pimcore_select('is_slider').getData()|default(false) %}
+
+{% set thumbnail = 'gallery' %}
+
+{% set block =
+    pimcore_block(
+        'galleryblock',
+        {
+            default: 1,
+            class: 'row g-1 g-sm-2 row-cols-2 row-cols-lg-3'
+        }
+    )
+%}
+
+{% set headline =
+    pimcore_headline(
+        'gallery-headline',
+        {
+            placeholder: lorem(20, false),
+            headlineClass: 'mb-0',
+            default: {
+                headlineSeo: 'h3'
+            }
+        }
+    )
+%}
+
+{% set galleryRepeater %}
+    {% for i in block.iterator %}
+        {# Lightbox imageset generator BEGIN #}
+        {% set lightboxImageSizes = [640, 960, 1280, 1440, 1920] %}
+        {% set lightboxSrcSet = [] %}
+        {% if not editmode %}
+            {% for imageSize in lightboxImageSizes %}
+                {% set lightboxThumbnail = 'contain-16x9-' ~ imageSize %}
+                {% set lightboxImage =
+                    pimcore_image('gallery-picture').getThumbnail(lightboxThumbnail)
+                %}
+                {% set lightboxThumbnailSize = ' ' ~ imageSize ~ 'w' %}
+                {% set lightboxSrcSetEntry = (lightboxImage|raw) ~ lightboxThumbnailSize %}
+                {% set lightboxSrcSet = lightboxSrcSet|merge([lightboxSrcSetEntry]) %}
+            {% endfor %}
+        {% endif %}
+        {# Lightbox imageset generator END #}
+
+        {% set media =
+            pimcore_image(
+                'gallery-picture',
+                {
+                    reload: true,
+                    thumbnail: thumbnail
+                }
+            )
+        %}
+
+        <div class="col d-flex flex-column">
+            {% if not media.isEmpty() and not editmode %}
+                <a href="{{ media.getSrc() }}"
+                    class="w-100 ratio ratio-1x1 chocolat-image"
+                    data-srcset="{{ lightboxSrcSet|join(',') }}"
+                    data-sizes="100vw">
+                    {{ media|raw }}
+                </a>
+            {% endif %}
+            {% if editmode %}
+                <div class="w-100 ratio ratio-1x1">
+                    {{ media|raw }}
+                </div>
+            {% endif %}
+            {% set copyright = media.image.property('Copyright')|default(null) %}
+            {% if copyright %}
+                <small>{{ copyright|raw }}</small>
+            {% endif %}
+        </div>
+    {% endfor %}
+{% endset %}
+
+<section class="container-standard {{ el_spacing }}">
+    <div class="gallery chocolat-parent">
+        {{ headline|raw }}
+        <div {{ editmode ? '' : 'class="row g-1 g-sm-2 row-cols-2 row-cols-lg-3"' }}>
+            {{ galleryRepeater|raw }}
+        </div>
+    </div>
+</section>

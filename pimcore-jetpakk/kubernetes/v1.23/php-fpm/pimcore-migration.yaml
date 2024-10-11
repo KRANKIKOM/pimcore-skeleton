@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pimcore-migration
+spec:
+  template:
+    spec:
+      containers:
+      - name: pimcore-migration
+        image: "k-registry.krankikom.de/krankikom/pimcore-website:master"
+        command: ["/bin/bash", "-c"]
+        args:
+          -
+            INSTALLED=$(mysql -u "$MYSQL_USER" --password="$MYSQL_PASSWORD" -h "$MYSQL_HOST" "$MYSQL_DB" -e "SELECT id FROM assets LIMIT 1" --raw -s --skip-column-names)
+
+            if [ "$INSTALLED" == "1" ]; then
+                echo "**** Running migration wrapper script ****";
+                cd /var/www/html; 
+                vendor/krankikom/pimcore-jetpakk/kubernetes/k8s-run-migrations.sh
+            else
+                echo "**** Pimcore not yet installed ****";
+            fi;
+
+        envFrom: #--ignore-existing-config
+        - configMapRef:
+            name: pimcore-config
+        env:
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: config-secret
+              key: mysql-password
+        volumeMounts:
+          - name: media-web-data
+            mountPath: /var/www/html/public/var
+          - name: media-data
+            mountPath: /var/www/html/var
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: "github"
+      - name: "kk-registry-secret"
+      volumes:
+      - name: media-data
+        persistentVolumeClaim:
+          claimName: media-data
+      - name: media-web-data
+        persistentVolumeClaim:
+          claimName: media-web-data
+  backoffLimit: 300

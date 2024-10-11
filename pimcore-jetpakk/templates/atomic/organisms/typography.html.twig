@@ -1,0 +1,18 @@
+<div class="text-brick {{ variant }}">
+    {% block standardLead %}
+        {% if not lead.isEmpty or editmode %}
+            <h5 class="lead">
+                {{ lead|raw }}
+            </h5>
+        {% endif %}
+    {% endblock %}
+    {% block standardHeadline %}
+        {{ headline|raw }}
+    {% endblock %}
+    {% block standardText %}
+        {{ text|raw }}
+    {% endblock %}
+    {% block standardButton %}
+        {{ button|raw }}
+    {% endblock %}
+</div>

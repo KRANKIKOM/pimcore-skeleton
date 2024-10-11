@@ -1,0 +1,49 @@
+{
+    "name": "krankikom/pimcore-jetpakk",
+    "type": "pimcore-bundle",
+    "description": "Pimcore Jetpakk",
+    "autoload": {
+        "psr-4": {
+            "Krankikom\\PimcoreJetpakkBundle\\": "src"
+        }
+    },
+    "extra": {
+        "pimcore": {
+            "bundles": [
+                "Krankikom\\PimcoreJetpakkBundle\\PimcoreJetpakkBundle"
+            ]
+        }
+    },
+    "authors": [
+        {
+            "name": "Patrick Hagemeister",
+            "email": "patrick.hagemeister@krankikom.de"
+        },
+        {
+            "name": "Thomas Franz",
+            "email": "thomas.franz@krankikom.de"
+        },
+        {
+            "name": "Gregor Draute",
+            "email": "gregor.draute@krankikom.de"
+        },
+        {
+            "name": "Sascha Howe",
+            "email": "sascha.howe@krankikom.de"
+        },
+        {
+            "name": "Christian Braasch",
+            "email": "christian.braasch@krankikom.de"
+        }
+    ],
+    "require": {
+        "pimcore/pimcore": ">=10.5"
+    },
+    "repositories": {
+        "private-packagist": {
+            "type": "composer",
+            "url": "https://repo.packagist.com/krankikom/"
+        },
+        "packagist.org": false
+    }
+}

@@ -1,0 +1,62 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: job-maintenance
+spec:
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      name: job-maintenance
+    spec:
+      template:
+        spec:
+          containers:
+          - image: "k-registry.krankikom.de/krankikom/pimcore-website:latest"
+            imagePullPolicy: "IfNotPresent"
+            command: ['sh', '-c', 'cd /var/www/html && ./bin/console maintenance']
+            name: maintenance
+            env:
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: config-secret
+                  key: mysql-password
+            envFrom:
+            - configMapRef:
+                name: pimcore-config
+            volumeMounts:
+            - name: media-data
+              mountPath: /var/www/html/var
+            - name: media-web-data
+              mountPath: /var/www/html/public/var
+          imagePullSecrets:
+          - name: "github"
+          - name: "kk-registry-secret"
+          volumes:
+          - name: media-data
+            persistentVolumeClaim:
+              claimName: media-data
+          - name: media-web-data
+            persistentVolumeClaim:
+              claimName: media-web-data
+          restartPolicy: OnFailure
+  schedule: '*/15 * * * *'
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    app: pimcore-monitoring
+  name: pimcore-maintenance
+spec:
+  groups:
+  - name: Pimcore Jobs
+    rules:
+    - alert: Maintenance Job
+      expr: time() - kube_cronjob_status_last_schedule_time{cronjob=~"job-maintenance"} > 900
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: Maintenance Job (instance {{ $labels.instance }})
+        description: "Maintenance Job down\n  VALUE = {{ $value }}\n  LABELS = {{ $labels }}"

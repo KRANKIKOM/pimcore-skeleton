@@ -1,0 +1,68 @@
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                definitions:
+                    kv_thumbnail:
+                        items:
+                            -
+                                method: cover
+                                arguments:
+                                    width: 600
+                                    height: 450
+                                    positioning: center
+                                    forceResize: false
+                        medias:
+                            '(min-width: 1440px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 1700
+                                        height: 800
+                                        positioning: center
+                                        forceResize: false
+                            '(min-width: 1280px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 1500
+                                        height: 700
+                                        positioning: center
+                                        forceResize: false
+                            '(min-width: 992px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 1300
+                                        height: 500
+                                        positioning: center
+                                        forceResize: false
+                            '(min-width: 768px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 1000
+                                        height: 300
+                                        positioning: center
+                                        forceResize: false
+                            '(min-width: 576px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 800
+                                        height: 240
+                                        positioning: center
+                                        forceResize: false
+                        name: kv_thumbnail
+                        description: ''
+                        group: ''
+                        format: SOURCE
+                        quality: 85
+                        highResolution: null
+                        preserveColor: false
+                        preserveMetaData: false
+                        rasterizeSVG: false
+                        downloadable: false
+                        modificationDate: 1701185053
+                        creationDate: 1701184299
+                        preserveAnimation: false

@@ -1,0 +1,87 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  creationTimestamp: null
+  labels:
+    run: mysql-backup
+  name: mysql-backup
+spec:
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    metadata:
+      creationTimestamp: null
+    spec:
+      template:
+        metadata:
+          creationTimestamp: null
+          labels:
+            run: mysql-backup
+        spec:
+          initContainers:
+          - name: "remove-old-backup"
+            image: "busybox:1.29.3"
+            imagePullPolicy: "IfNotPresent"
+            resources:
+              requests:
+                cpu: 10m
+                memory: 10Mi
+            command: ['sh', '-c', 'rm -rf /backup/*']
+            volumeMounts:
+            - name: mysql-backup
+              mountPath: /backup
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - mysql
+                topologyKey: "kubernetes.io/hostname"
+          containers:
+          - name: mariabackup
+            command:
+            - bash
+            - -c
+            - 'DATE=$(date +%Y-%m-%d_%Hh%Mm); mkdir /backup/$DATE; mariabackup --backup --user=root --password="${MYSQL_ROOT_PASSWORD}" --host=mysql --target-dir=/backup/$DATE'
+            image: mariadb:10.5
+            env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: config-secret
+                  key: mysql-root-password
+            resources: {}
+            volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+              readOnly: true
+            - name: mysql-backup
+              mountPath: /backup
+          restartPolicy: OnFailure
+          volumes:
+          - name: mysql-data
+            persistentVolumeClaim:
+              claimName: mysql-data
+              readOnly: true
+          - name: mysql-backup
+            persistentVolumeClaim:
+              claimName: mysql-backup
+  schedule: "0 1 * * ?"
+---
+# Source: mysql/templates/pvc.yaml
+
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: mysql-backup
+  labels:
+    app: mysql
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: "20Gi"
+  storageClassName: managed-mysql-backup-nfs-storage

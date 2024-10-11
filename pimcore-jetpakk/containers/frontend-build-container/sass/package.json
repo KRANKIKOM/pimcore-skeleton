@@ -1,0 +1,17 @@
+{
+  "name": "sass-container",
+  "version": "1.0.0",
+  "description": "",
+  "main": "build.js",
+  "scripts": {
+  },
+  "keywords": [],
+  "author": "",
+  "license": "",
+  "dependencies": {
+    "chokidar": "^3.5.1",
+    "sass": "^1.32.8",
+    "glob": "^7.1.6",
+    "throttle-debounce": "^3.0.1"
+  }
+}

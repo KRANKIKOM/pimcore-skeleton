@@ -1,0 +1,84 @@
+{% extends '@PimcoreJetpakk/atomic/data_wrapper.html.twig' %}
+
+{% block brick_include %}
+    {% set variant = pimcore_select('variant').getData()|default('col-md-10') %}
+    {% set lead =
+        pimcore_input(
+            'lead',
+            {
+                placeholder: 'Lead'
+            }
+        )
+    %}
+    {% set headline =
+        pimcore_headline(
+            'headline',
+            {
+                placeholder: 'Headline',
+                default: {
+                    headlineSeo: 'h2',
+                    headlineVisual: 'h2'
+                }
+            }
+        )
+    %}
+    {% set text =
+        pimcore_wysiwyg(
+            'text',
+            {
+                placeholder: lorem(100),
+                class: 'w-100'
+            }
+        )
+    %}
+    {% set button = pimcore_button('button') %}
+
+    {% set vSection %}
+        <div class="row justify-content-center">
+            {% block vSectionLeft %}
+                <div class="col-md-3 text-brick">
+                    {% block sectionLead %}
+                        <h5>{{ lead|raw }}</h5>
+                    {% endblock %}
+                    {% block sectionHeadline %}
+                        {{ headline|raw }}
+                    {% endblock %}
+                </div>
+            {% endblock %}
+            {% block vSectionRight %}
+                <div class="col-md-7 text-brick">
+                    {{ text|raw }}
+                    {{ button|raw }}
+                </div>
+            {% endblock %}
+        </div>
+    {% endset %}
+    {% set vStandard %}
+        <div class="row justify-content-center justify-content-center">
+            {{
+                include(
+                    '@PimcoreJetpakk/atomic/organisms/typography.html.twig',
+                    {
+                        lead: lead,
+                        headline: headline,
+                        text: text,
+                        button: button,
+                        variant: variant
+                    },
+                    false
+                )
+            }}
+        </div>
+    {% endset %}
+    <section class="{{ el_spacing }}">
+        {% block textbrick %}
+            <div class="container-standard">
+                {% if variant == 'section' %}
+                    {{ vSection|raw }}
+                {% else %}
+                    {{ vStandard|raw }}
+                {% endif %}
+            </div>
+        {% endblock %}
+    </section>
+{% endblock %}

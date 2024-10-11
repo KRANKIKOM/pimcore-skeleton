@@ -1,0 +1,9 @@
+<% if [ "$FRONTEND_BUILD_FLAVOUR" = "sass" ]; then -%>
+# SASS COPY
+COPY --chown=www-data:www-data --from=sass /src/css /var/www/html/public/css
+
+<% else %>
+# WEBPACK COPY
+ARG ASSETS_DIR
+COPY --chown=www-data:www-data --from=webpack /var/www/html/public/${ASSETS_DIR} /var/www/html/public/${ASSETS_DIR}
+<% fi -%>

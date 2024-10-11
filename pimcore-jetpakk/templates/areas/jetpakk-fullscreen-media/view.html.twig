@@ -1,0 +1,89 @@
+{% extends '@PimcoreJetpakk/atomic/data_wrapper.html.twig' %}
+{% block brick_include %}
+    {% set textposition =
+        pimcore_select('textposition').getData()|default('justify-content-start')
+    %}
+    {% set fullscreen_media_toggle =
+        pimcore_toggle(
+            'media',
+            {
+                floating: true,
+                choices: [
+                    {
+                        label: 'Image',
+                        value: 'image'
+                    },
+                    {
+                        label: 'Video',
+                        value: 'video'
+                    }
+                ],
+                default: 'image'
+            }
+        )
+    %}
+    {% set fullscreen_thumbnail = fullscreen_thumbnail is defined
+        ? fullscreen_thumbnail
+        : 'fullscreen_thumbnail'
+    %}
+
+    {% set fullscreen_image =
+        pimcore_image(
+            'image',
+            {
+                thumbnail: fullscreen_thumbnail
+            }
+        )
+    %}
+    {% set fullscreen_video =
+        pimcore_video(
+            'video',
+            {
+                attributes: {
+                    autoplay: true,
+                    preload: 'auto',
+                    controls: 'controls',
+                    muted: true,
+                    loop: true,
+                    playsinline: 'true'
+                }
+            }
+        )
+    %}
+    {% set fullscreen_headline =
+        pimcore_headline(
+            'headline',
+            {
+                placeholder: 'Headline'
+            }
+        )
+    %}
+    {% set fullscreen_text = pimcore_wysiwyg('text') %}
+    {% set fullscreen_button = pimcore_button('button') %}
+
+    <section class="fullscreen {{ el_spacing }}">
+        {{ editmode ? fullscreen_media_toggle|raw }}
+        <div class="fullscreen-media ratio">
+            {{ fullscreen_media_toggle.value == 'video'
+                ? fullscreen_video|raw
+                : fullscreen_image|raw }}
+        </div>
+        {% block fullscreen_content_wrapper %}
+            {% if has(fullscreen_headline) or has(fullscreen_text) %}
+                <div class="fullscreen-content">
+                    <div class="container">
+                        <div class="d-flex {{ textposition }}">
+                            {% block fullscreen_content %}
+                                <div class="fullscreen-content--background">
+                                    {{ fullscreen_headline|raw }}
+                                    {{ fullscreen_text|raw }}
+                                    {{ fullscreen_button|raw }}
+                                </div>
+                            {% endblock %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        {% endblock %}
+    </section>
+{% endblock %}

@@ -1,0 +1,65 @@
+<% if [ "$FRONTEND_BUILD_FLAVOUR" = "sass" ]; then -%>
+
+###
+### START: SASS Layer
+###
+
+FROM node:17-bullseye AS sass
+
+# --- Copy SASS source folder ---
+RUN mkdir -p /src/css
+ADD public/css /src/css
+
+# --- Prepare the SASS build script ---
+RUN mkdir /sass-build/
+COPY vendor/krankikom/pimcore-jetpakk/containers/frontend-build-container/sass/* /sass-build/
+WORKDIR /sass-build
+RUN npm install --unsafe-perm=true --allow-root
+
+# --- RUN SASS build ---
+WORKDIR /src/css
+RUN ls -al  /src/css
+RUN SASS_NOWATCH=1 SASS_CSS_BASEFOLDER=/src/css/ node /sass-build/build.js;
+RUN ls -al /src/css
+
+###
+### END: SASS Layer
+###
+
+<% else -%>
+
+
+
+
+###
+### START: Webpack Layer
+###
+
+FROM node:17-bullseye AS webpack
+ARG ASSETS_DIR
+
+# --- Install requirements ---
+COPY --from=build /app/vendor/krankikom/pimcore-jetpakk/containers/frontend-build-container/webpack/install_webpack_apt_requirements.sh /install_webpack_apt_requirements.sh
+RUN /install_webpack_apt_requirements.sh
+
+# --- Copy SASS source folder ---
+RUN mkdir -p /var/www/html
+
+COPY . /var/www/html
+
+COPY --from=build /app/vendor/krankikom/pimcore-jetpakk/devsetup/webpack-project-config.json /var/www/html/
+
+# --- Install npm requirements ----
+ENV CPPFLAGS="-DPNG_ARM_NEON_OPT=0"
+RUN cd /var/www/html/;npm install --unsafe-perm=true --allow-root --include=dev
+
+# --- Run webpack ---
+WORKDIR /var/www/html
+ARG NODE_ENV=prod
+RUN mkdir -p public/${ASSETS_DIR}
+RUN node node_modules/.bin/webpack --config node_modules/kk-webpack-base--config
+
+###
+### END: Webpack Layer
+###
+<% fi -%>

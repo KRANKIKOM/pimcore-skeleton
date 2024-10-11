@@ -1,0 +1,22 @@
+imports:
+    - { resource: ../image_thumbnails.yaml }
+
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                auto_formats:
+                    webp:
+                        quality: 65
+                        enabled: true
+                    avif:
+                        enabled: false
+
+### CUSTOM DOCUMENT EDITABLES
+    documents:
+        editables:
+            map:
+                headline: Krankikom\PimcoreJetpakkBundle\Model\Document\Editable\Headline
+                button: Krankikom\PimcoreJetpakkBundle\Model\Document\Editable\Button
+                toggle: Krankikom\PimcoreJetpakkBundle\Model\Document\Editable\Toggle
+                colorpicker: Krankikom\PimcoreJetpakkBundle\Model\Document\Editable\Colorpicker

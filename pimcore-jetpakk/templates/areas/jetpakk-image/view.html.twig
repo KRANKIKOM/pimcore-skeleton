@@ -1,0 +1,86 @@
+{% extends '@PimcoreJetpakk/atomic/data_wrapper.html.twig' %}
+
+{% block brick_wrapper %}
+    {% set variant = pimcore_select('variant').getData()|default('contentwidth') %}
+    {{ parent() }}
+{% endblock %}
+{% block brick_include %}
+    {% set imagebrick_thumbnail = imagebrick_thumbnail is defined
+        ? imagebrick_thumbnail
+        : 'imagebrick_thumbnail'
+    %}
+    {% set imagebrick_fw_thumbnail = imagebrick_fw_thumbnail is defined
+        ? imagebrick_fw_thumbnail
+        : 'kv_thumbnail'
+    %}
+
+    {% set image =
+        pimcore_image(
+            'image',
+            {
+                required: true
+            }
+        )
+    %}
+    {% set caption =
+        pimcore_input(
+            'caption',
+            {
+                placeholder: 'Bildunterschrift'
+            }
+        )
+    %}
+    {% set author =
+        pimcore_input(
+            'author',
+            {
+                placeholder: 'Copyright oder Author'
+            }
+        )
+    %}
+    {% set link = pimcore_link('link') %}
+    <section>
+        {% block image %}
+            {% if variant == 'fullwidth' %}
+                {% block vImageFullwidth %}
+                    <div class="image__fullwidth ratio {{ el_spacing }}">
+                        {% if editmode %}
+                            {{ image|raw }}
+                        {% elseif has(image) %}
+                            {{ image.thumbnail(imagebrick_fw_thumbnail).html|raw }}
+                        {% endif %}
+                    </div>
+                {% endblock %}
+            {% else %}
+                <div class="container image {{ el_spacing }}">
+                    {% if editmode %}
+                        {{ image|raw }}
+                    {% elseif has(image) %}
+                        {{ image.thumbnail(imagebrick_thumbnail).html|raw }}
+                    {% endif %}
+                    {% block imageCaption %}
+                        {% if has(author) or has(caption) or has(link) %}
+                            <div class="row justify-content-center">
+                                <div class="col-md-10 image-caption">
+                                    {% block imageCaptionAuthor %}
+                                        {% if has(author) %}
+                                            <strong>{{ author|raw }}</strong>
+                                        {% endif %}
+                                    {% endblock %}
+                                    {% block imageCaptionCaption %}
+                                        {% if has(caption) %}
+                                            <em>{{ caption|raw }}</em>
+                                        {% endif %}
+                                    {% endblock %}
+                                    {% block imageCaptionLink %}
+                                        {{ link | raw }}
+                                    {% endblock %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endblock %}
+                </div>
+            {% endif %}
+        {% endblock %}
+    </section>
+{% endblock %}

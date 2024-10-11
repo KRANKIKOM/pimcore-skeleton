@@ -1,0 +1,38 @@
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                definitions:
+                    picture_text_responsive_thumbnail:
+                        items:
+                            -
+                                method: scaleByWidth
+                                arguments:
+                                    width: 530
+                                    forceResize: false
+                        medias:
+                            '(min-width: 576px)':
+                                -
+                                    method: scaleByWidth
+                                    arguments:
+                                        width: 720
+                                        forceResize: false
+                            '(min-width: 768px)':
+                                -
+                                    method: scaleByWidth
+                                    arguments:
+                                        width: 1200
+                                        forceResize: false
+                        name: picture_text_responsive_thumbnail
+                        description: ''
+                        group: ''
+                        format: SOURCE
+                        quality: 85
+                        highResolution: null
+                        preserveColor: false
+                        preserveMetaData: false
+                        rasterizeSVG: false
+                        downloadable: false
+                        modificationDate: 1702551094
+                        creationDate: 1702485202
+                        preserveAnimation: false

@@ -1,0 +1,63 @@
+{% if editmode %}
+    <link rel="stylesheet" href="/assets/css/app.css" />
+    <script src="/assets/js/app.js" defer></script>
+{% endif %}
+
+{% set footer_logo_thumbnail = footer_logo_thumbnail is defined
+    ? footer_logo_thumbnail
+    : 'jetpakk-placeholder'
+%}
+
+{% block footer %}
+<footer>
+    <div class="container-standard">
+        <div class="row py-5">
+            {% block footer_logo %}
+                <div class="col-12 col-md-auto footer-logo">
+                    {{
+                        pimcore_image(
+                            'logo',
+                            {
+                                thumbnail: footer_logo_thumbnail
+                            }
+                            )
+                        }}
+                </div>
+            {% endblock %}
+            {% block footer_links %}
+                <div class="col-12 col-md-auto">
+                    {% block footer_links__social %}
+                    <div class="footer-links mb-3">
+                        {% include '@PimcoreJetpakk/atomic/organisms/_socialmedia-buttons.html.twig' with {
+                            uid: 'footer',
+                            socials: ['facebook', 'instagram', 'linkedin']
+                        } %}
+                    </div>
+                    {% endblock %}
+                    {% block footer_links__legal %}
+                        {% set block =
+                            pimcore_block(
+                                'legalnotes',
+                                {
+                                    manual: true,
+                                    default: 1
+                                }
+                                ).start()
+                                %}
+                                <div class="footer-links">
+                                    {% for b in block.iterator %}
+                                    {% do block.blockConstruct() %}
+                                    {% do block.blockStart() %}
+                                    {{ pimcore_link('legalnote') }}
+                                    {% do block.blockEnd() %}
+                                    {% do block.blockDestruct() %}
+                                    {% endfor %}
+                                </div>
+                        {% do block.end() %}
+                    {% endblock %}
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+    </footer>
+{% endblock %}

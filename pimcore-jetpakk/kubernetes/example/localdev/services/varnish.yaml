@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: pimcore-varnish
+  name: pimcore-varnish
+spec:
+  selector:
+    matchLabels:
+      app: pimcore-varnish
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: pimcore-varnish
+    spec:
+      containers:
+        - name: pimcore-varnish
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          env:
+          - name: VARNISH_SIZE
+            value: "100M"

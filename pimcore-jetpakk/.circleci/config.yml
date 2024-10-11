@@ -1,0 +1,75 @@
+version: 2.1
+
+executors:
+  amd64: 
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    resource_class: xlarge
+  arm:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    resource_class: arm.medium
+
+jobs:
+  ci:
+    parallelism: 16
+    executor: << parameters.os >>
+    parameters:
+      os:
+        type: executor
+      php-image-label:
+        type: string
+      pimcore-version:
+        type: string
+      pimcore-skeleton-version:
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: "Install direnv"
+          command: "which brew >/dev/null||sudo apt-get install -y direnv; which apt-get >/dev/null||brew install direnv"
+      - run:
+          name: "Create proxy network"
+          command: "docker network list|grep proxy || docker network create proxy 2>&1 >/dev/null"
+      - restore_cache:
+          name: Restore composer cache dir
+          keys: 
+            - composer-cache--{{ checksum "composer.json" }}--<< parameters.os >>--<< parameters.php-image-label >>--<< parameters.pimcore-version >>
+            - composer-cache
+      - run:
+          name: "Run jetpakk installer"
+          command: "./pimcore-devsetup-install.sh -s << parameters.pimcore-skeleton-version >> -n testweb -p << parameters.php-image-label >> -i << parameters.pimcore-version >>"
+      - run:
+          name: "Run bootstrap script"
+          command: "cd testweb; ./devsetup-bootstrap.sh"
+      - run:
+          name: "Sleep 10 secs"
+          command: "sleep 10"
+      - run:
+          name: "Bring up web"
+          command: "cd testweb; ./devsetup.sh up"
+      - save_cache:
+          name: Cache composer cache dir
+          key: composer-cache--{{ checksum "composer.json" }}--<< parameters.os >>--<< parameters.php-image-label >>--<< parameters.pimcore-version >>
+          paths:
+            - ~/.composer
+      - run:
+          name: "Sleep another 10 secs"
+          command: "sleep 10"
+      - run:
+          name: "Run codeception"
+          command: "cd testweb; docker compose run --rm -T test-php vendor/bin/codecept run -vv"
+
+
+workflows:
+  all-tests:
+    jobs:
+      - ci:
+          matrix:
+            parameters:
+              os: [amd64, arm]
+              php-image-label: ["PHP8.1-fpm","PHP8.2-fpm"]
+              pimcore-version: ["current", "11.0.10"]
+              pimcore-skeleton-version: ["11.x-dev"]

@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: maintenance-consumer
+  labels:
+    app: maintenance-consumer
+spec:
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: maintenance-consumer
+  template:
+    metadata:
+      labels:
+        app: maintenance-consumer
+    spec:
+      containers:
+      - name: maintenance-consumer
+        image: "k-registry.krankikom.de/krankikom/pimcore-website:master"
+        command: ['sh', '-c', 'cd /var/www/html && ./bin/console messenger:consume pimcore_core pimcore_maintenance pimcore_image_optimize pimcore_asset_update pimcore_scheduled_tasks']
+        imagePullPolicy: "IfNotPresent"
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 512Mi
+          requests:
+            cpu: 500m
+            memory: 256Mi
+        env:
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: config-secret
+              key: mysql-password
+        envFrom:
+        - configMapRef:
+            name: pimcore-config
+        volumeMounts:
+        - name: media-data
+          mountPath: /var/www/html/var
+        - name: media-web-data
+          mountPath: /var/www/html/public/var
+      imagePullSecrets:
+      - name: "github"
+      - name: "kk-registry-secret"
+      volumes:
+      - name: media-data
+        persistentVolumeClaim:
+          claimName: media-data
+      - name: media-web-data
+        persistentVolumeClaim:
+          claimName: media-web-data

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pimcore-website-fpm
+  labels:
+    app: pimcore-website-fpm
+spec:
+  template:
+    spec:
+    
+      initContainers:
+        - name: "init-application"
+      
+      containers:
+      - name: pimcore-website-fpm        
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+      - name: apache
+        image: "apache-fcgi:latest"
+        resources:
+          requests:
+            memory: "384Mi"
+            cpu: "200m"
+      - name: metrics
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+      

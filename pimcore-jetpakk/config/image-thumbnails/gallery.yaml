@@ -1,0 +1,52 @@
+pimcore:
+    assets:
+        image:
+            thumbnails:
+                definitions:
+                    gallery:
+                        items:
+                            -
+                                method: cover
+                                arguments:
+                                    width: 280
+                                    height: 280
+                                    positioning: center
+                                    forceResize: true
+                        medias:
+                            '(min-width: 992px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 280
+                                        height: 280
+                                        positioning: center
+                                        forceResize: true
+                            '(min-width: 768px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 400
+                                        height: 400
+                                        positioning: center
+                                        forceResize: true
+                            '(min-width: 576px)':
+                                -
+                                    method: cover
+                                    arguments:
+                                        width: 360
+                                        height: 360
+                                        positioning: center
+                                        forceResize: true
+                        name: gallery
+                        description: ''
+                        group: ''
+                        format: SOURCE
+                        quality: 85
+                        highResolution: 0.0
+                        preserveColor: false
+                        preserveMetaData: false
+                        rasterizeSVG: false
+                        downloadable: false
+                        modificationDate: 1658497832
+                        creationDate: 1657117360
+                        preserveAnimation: false

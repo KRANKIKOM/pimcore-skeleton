@@ -1,0 +1,144 @@
+{% block keyvisual_outside %}
+    {% set kv_variant = kv_variant is defined ? kv_variant : 'large' %}
+    {% set kv_backdrop = kv_backdrop is defined ? kv_backdrop : false %}
+    {% set kv_textcolor = kv_textcolor is defined ? kv_textcolor : 'light' %}
+
+    {% if kv_variant == 'small' %}
+        {% set kv_textcolor = 'dark' %}
+    {% endif %}
+
+    {% set kv_thumbnail = kv_thumbnail is defined ? kv_thumbnail : 'kv_thumbnail' %}
+
+    {% set kv_lead = kv_lead is defined
+        ? kv_lead
+        : pimcore_input(
+            'lead',
+            {
+                placeholder: 'lead'
+            }
+        )
+    %}
+    {% set kv_headline = kv_headline is defined
+        ? kv_headline
+        : pimcore_textarea(
+            'headline',
+            {
+                placeholder: 'headline',
+                nl2br: true
+            }
+        )
+    %}
+    {% set kv_button = kv_button is defined
+        ? kv_button
+        : pimcore_button(
+            'button',
+            {
+                disable: ['btnType', 'btnStyle', 'btnIcon', 'btnIconPos'],
+                force: {
+                    btnStyle: kv_textcolor,
+                    btnType: 'text',
+                    btnIcon: 'arrow-24'
+                },
+                placeholder: 'button'
+            }
+        )
+    %}
+    {% set kv_media_toggle = kv_media_toggle is defined
+        ? kv_media_toggle
+        : pimcore_toggle(
+            'media',
+            {
+                floating: true,
+                choices: [
+                    {
+                        label: 'Picture',
+                        value: 'picture'
+                    },
+                    {
+                        label: 'Video',
+                        value: 'video'
+                    }
+                ]
+            }
+        )
+    %}
+    {% set kv_image = kv_image is defined
+        ? kv_image
+        : pimcore_image(
+            'image',
+            {
+                thumbnail: kv_thumbnail
+            }
+        )
+    %}
+    {% set kv_video = kv_video is defined
+        ? kv_video
+        : pimcore_video(
+            'video',
+            {
+                attributes: {
+                    autoplay: true,
+                    preload: 'auto',
+                    controls: 'controls',
+                    muted: true,
+                    loop: true,
+                    playsinline: 'true'
+                }
+            }
+        )
+    %}
+    {% block keyvisual %}
+        <section class="keyvisual keyvisual--{{ kv_variant }} {{ el_spacing }}  keyvisual--text-{{
+            kv_textcolor
+            }} text-{{ kv_textcolor }}">
+            {% block keyvisual_media_outside %}
+                {% if has(kv_video) or has(kv_image) %}
+                    {% block keyvisual_media %}
+                        <div class="keyvisual__media ratio loading-state">
+                            {% block keyvisual_media_inside %}
+                                {{ editmode ? kv_media_toggle|raw }}
+                                {{ kv_media_toggle.value == 'video' ? kv_video|raw : kv_image|raw }}
+                            {% endblock %}
+                        </div>
+                    {% endblock %}
+                {% endif %}
+            {% endblock %}
+            {% block keyvisual_backdrop_outside %}
+                {% if kv_backdrop %}
+                    {% block keyvisual_backdrop %}
+                        <div class="keyvisual__backdrop">
+                            {% block keyvisual_backdrop_inside %}{% endblock %}
+                        </div>
+                    {% endblock %}
+                {% endif %}
+            {% endblock %}
+            {% block keyvisual_content_outside %}
+                {% if has(kv_lead) or has(kv_headline) %}
+                    {% block keyvisual_content %}
+                        <div class="keyvisual__content">
+                            <div class="container-standard">
+                                {% block keyvisual_content_inside %}
+                                    <div class="keyvisual__content__inner">
+                                        {% block keyvisual_content_inside_lead %}
+                                            {% if has(kv_lead) %}
+                                                <h5 class="lead">{{ kv_lead|raw }}</h5>
+                                            {% endif %}
+                                        {% endblock %}
+                                        {% block keyvisual_content_inside_headline %}
+                                            {% if has(kv_headline) %}
+                                                <h1 class="display">{{ kv_headline|raw }}</h1>
+                                            {% endif %}
+                                        {% endblock %}
+                                        {% block keyvisual_content_inside_button %}
+                                            {{ has(kv_button) ? kv_button|raw }}
+                                        {% endblock %}
+                                    </div>
+                                {% endblock %}
+                            </div>
+                        </div>
+                    {% endblock %}
+                {% endif %}
+            {% endblock %}
+        </section>
+    {% endblock %}
+{% endblock %}

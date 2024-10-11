@@ -1,0 +1,212 @@
+version: '2.4'
+<% if [ $USE_TRAEFIK = "true" ]; then -%>
+networks:
+  proxy:
+    external: true
+<% fi -%>
+services:
+  redis:
+    image: redis:alpine
+    container_name: pimcore-redis-<%= $WEB_NAME %>
+    healthcheck:
+        test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+        interval: 10s
+        timeout: 30s
+        retries: 10
+        start_period: 10s
+
+  db:
+    image: mariadb:10.5
+    container_name: pimcore-mariadb-<%= $WEB_NAME %>
+    command: [mysqld, --max_allowed_packet=64m, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --innodb-file-format=Barracuda, --innodb-large-prefix=1, --innodb-file-per-table=1]
+    volumes:
+        - ./vendor/krankikom/pimcore-jetpakk/containers/mariadb/init:/docker-entrypoint-initdb.d
+        - ./vendor/krankikom/pimcore-jetpakk/containers/mariadb/healthcheck.cnf:/healthcheck.cnf:ro
+        - <%= $MARIADB_VOLUME_PATH %>:/var/lib/mysql
+    healthcheck:
+        test: [ "CMD-SHELL", "/usr/local/bin/healthcheck.sh --connect --defaults-extra-file=healthcheck.cnf --innodb_initialized" ]
+        interval: 10s
+        timeout: 30s
+        retries: 10
+        start_period: 10s
+    environment:
+        - MYSQL_ROOT_PASSWORD=ROOT
+        - MYSQL_DATABASE=pimcore
+        - MYSQL_USER=pimcore
+        - MYSQL_PASSWORD=pimcore
+    <% if [ $USE_TRAEFIK = "false" ]; then %>ports:
+        - 3306:3306
+    <% else %>
+    networks:
+        - proxy
+        - default 
+    ports:
+        - <%= $MYSQL_LOCAL_PORT %>:3306
+    <% fi -%>
+
+  apache:
+    container_name: apache-<%= $WEB_NAME %>
+    build:
+        context: .
+        dockerfile: Dockerfile.apache.compose
+    environment:
+        - APACHE_DOCUMENT_ROOT=/var/www/html/public
+    volumes:
+        - <%= $MAIN_VOLUME_PATH %>:/var/www/html:cached
+        #- /opt/www/pimcore-setup/apache/ssl:/etc/apache2/ssl
+    depends_on:
+        - php 
+    <% if [ $USE_TRAEFIK = "true" ]; then %>labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.<%= $WEB_NAME %>-apache.rule=Host(`<%= $WEB_NAME %>.dev.kranki.net`) || HostRegexp(`{sub:[a-zA-Z0-9-]+}-<%= $WEB_NAME %>.dev.kranki.net`)"
+        - "traefik.http.routers.<%= $WEB_NAME %>-apache.entrypoints=http"
+        - "traefik.http.routers.<%= $WEB_NAME %>-apache.service=<%= $WEB_NAME %>-apache"
+        - "traefik.http.routers.<%= $WEB_NAME %>-apache.middlewares=<%= $WEB_NAME %>-https-redirect"
+        - "traefik.http.routers.<%= $WEB_NAME %>-apache-secure.rule=Host(`<%= $WEB_NAME %>.dev.kranki.net`) || HostRegexp(`{sub:[a-zA-Z0-9-]+}-<%= $WEB_NAME %>.dev.kranki.net`)"
+        - "traefik.http.routers.<%= $WEB_NAME %>-apache-secure.entrypoints=https"
+        - "traefik.http.routers.<%= $WEB_NAME %>-apache-secure.service=<%= $WEB_NAME %>-apache"
+        - "traefik.http.routers.<%= $WEB_NAME %>-apache-secure.tls=true"
+        - "traefik.http.middlewares.<%= $WEB_NAME %>-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.services.<%= $WEB_NAME %>-apache.loadbalancer.server.port=80"
+        - "traefik.docker.network=proxy"
+    networks:
+       - proxy
+       - default<% else -%>ports:
+        - 443:443
+        <% if [ $ALLOW_PORT80 = "true" ]; then -%>- 80:80<% fi -%><% fi %><% if [ ! -z "$DOCKER_UID" ]; then %>
+    user: '<%= $DOCKER_UID %>:<%= $DOCKER_GID %>'<% fi -%>
+        
+  php:
+    container_name: php-<%= $WEB_NAME %>
+    build:
+        context: .
+        dockerfile: Dockerfile.compose
+    volumes:
+        - <%= $MAIN_VOLUME_PATH %>:/var/www/html:delegated
+        - ~/.composer:/composer:cached
+        - ~/.ssh:/var/www/.ssh:cached
+    env_file:
+        - vendor/krankikom/pimcore-jetpakk/containers/.env_php
+    depends_on:
+        db:
+           condition: service_healthy
+        redis:
+           condition: service_healthy
+        elasticsearch:
+           condition: service_healthy
+    <% if [ ! -z "$DOCKER_UID" ]; then -%>user: '<%= $DOCKER_UID %>:<%= $DOCKER_GID %>'<% fi -%>
+    
+  pimcore-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.compose
+    container_name: pimcore-init-<%= $WEB_NAME %>
+    entrypoint: bash -x /var/www/html/vendor/krankikom/pimcore-jetpakk/containers/first-install.sh || true
+    volumes:
+      - <%= $MAIN_VOLUME_PATH %>:/var/www/html:delegated
+      - ~/.composer:/composer:cached
+      - ~/.ssh:/var/www/.ssh:cached
+    env_file:
+        - vendor/krankikom/pimcore-jetpakk/containers/.env_php
+    depends_on:
+        db:
+           condition: service_healthy
+    <% if [ ! -z "$DOCKER_UID" ]; then -%>user: '<%= $DOCKER_UID %>:<%= $DOCKER_GID %>'<% fi -%>
+
+  mailhog:
+    container_name: pimcore-mailhog-<%= $WEB_NAME %>
+    image: ajoergensen/mailhog:latest
+    <% if [ $USE_TRAEFIK = "true" ]; then %>labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.<%= $WEB_NAME %>-mailhog.rule=Host(`<%= $WEB_NAME %>-mailhog.dev.kranki.net`)"
+        - "traefik.http.routers.<%= $WEB_NAME %>-mailhog.entrypoints=http"    
+        - "traefik.http.services.<%= $WEB_NAME %>-mailhog.loadbalancer.server.port=8025"
+        - "traefik.docker.network=proxy"
+    networks:
+       - proxy
+       - default
+    <% else -%>ports:
+      - 1025:1025
+      - 8025:8025
+    <% fi -%>
+        
+  frontend-build:
+    container_name: frontend-build-<%= $WEB_NAME %>
+    build: 
+        context: .
+        dockerfile: ./vendor/krankikom/pimcore-jetpakk/containers/frontend-build-container/Dockerfile
+    volumes:
+        - <%= $MAIN_VOLUME_PATH %>:/var/www/html
+    tmpfs:
+        - /var/www/html/node_modules:uid=33,gid=33,exec
+    environment:
+        - FRONTEND_BUILD_FLAVOUR=<%= $FRONTEND_BUILD_FLAVOUR %>
+    ports: 
+        - 3000
+        - 3001
+        
+  elasticsearch:
+      image: docker.elastic.co/elasticsearch/elasticsearch:7.16.2
+      container_name: elasticsearch-<%= $WEB_NAME %>
+      environment:
+          - discovery.type=single-node
+          - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      ulimits:
+<% if [ $ELASTICSEARCH_MEMLOCK = "true" ]; then -%>
+          memlock:
+              soft: -1
+              hard: -1
+<% fi -%>
+          nofile:
+              soft: 65536
+              hard: 65536
+      cap_add:
+          - IPC_LOCK
+      volumes:
+          - <%= $ELASTICSEARCH_VOLUME_PATH %>:/usr/share/elasticsearch/data
+      healthcheck:
+            test: [ "CMD-SHELL", "curl -s http://elasticsearch-<%= $WEB_NAME %>:9200 >/dev/null || exit 1" ]
+            interval: 30s
+            timeout: 10s
+            retries: 50
+      ports:
+          - 9200
+          - 9300
+
+  kibana:
+      container_name: kibana-<%= $WEB_NAME %>
+      image: docker.elastic.co/kibana/kibana:7.16.2
+      environment:
+          ELASTICSEARCH_URL: http://elasticsearch:9200
+          ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+      depends_on:
+          - elasticsearch
+      <% if [ $USE_TRAEFIK = "true" ]; then %>labels:
+          - "traefik.enable=true"
+          - "traefik.http.routers.<%= $WEB_NAME %>-kibana.rule=Host(`<%= $WEB_NAME %>-kibana.dev.kranki.net`)"
+          - "traefik.http.routers.<%= $WEB_NAME %>-kibana.entrypoints=http"    
+          - "traefik.http.services.<%= $WEB_NAME %>-kibana.loadbalancer.server.port=5601"
+          - "traefik.docker.network=proxy"
+      networks:
+          - proxy
+          - default
+      <% else -%>ports:
+          - 5601
+      <% fi -%>
+
+<% if [ $GOTENBERG = "true" ]; then %>
+  gotenberg:
+      image: gotenberg/gotenberg:7.10.1
+      ports:
+          - "3000:3000"
+<% fi -%>
+
+volumes:
+    dummy:
+<% if [ $MARIADB_VOLUME_PATH = "pimcore-mariadb-10" ]; then -%>
+    pimcore-mariadb-10:
+  <% fi -%>
+<% if [ $ELASTICSEARCH_VOLUME_PATH = "elasticsearch-data" ]; then -%>  
+    elasticsearch-data:
+      driver: local
+<% fi -%>

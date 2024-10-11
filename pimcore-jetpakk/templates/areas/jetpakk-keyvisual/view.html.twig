@@ -1,0 +1,12 @@
+{% extends '@PimcoreJetpakk/atomic/data_wrapper.html.twig' %}
+
+{% block brick_wrapper %}
+    {% set kv_variant = pimcore_select('variant').getData()|default('large') %}
+    {% set kv_backdrop = pimcore_select('backdrop').getData()|default(false) %}
+    {% set kv_textcolor = pimcore_select('textcolor').getData()|default('light') %}
+    {{ parent() }}
+{% endblock %}
+
+{% block brick_include %}
+    {{ include('@PimcoreJetpakk/atomic/templates/keyvisual.html.twig') }}
+{% endblock %}
