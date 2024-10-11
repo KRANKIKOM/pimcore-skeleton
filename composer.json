@@ -52,11 +52,13 @@
       "Pimcore\\Composer::installAssets"
     ]
   },
-  "repositories": {
-    "private-packagist": {
-        "type": "composer",
-        "url": "https://repo.packagist.com/krankikom/"
-    },
-    "packagist.org": false
-  }
+  "repositories": [
+    {
+      "type": "path",
+      "url": "./pimcore-jetpakk",
+      "options": {
+        "symlink": true
+      }
+    }
+  ]
 }
