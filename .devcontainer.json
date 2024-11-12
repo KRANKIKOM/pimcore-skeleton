@@ -1,0 +1,17 @@
+{
+    "name": "Pimcore Web",
+    "build": {
+      "dockerfile": "Dockerfile.codespaces"
+    },
+    "customizations": {
+      "vscode": {
+        "settings": {},
+        "extensions": []
+      }
+    },
+    "features": {
+      "docker-in-docker": "latest"
+    },
+    "postCreateCommand": "./devcontainer-postcreate.sh",
+    "remoteUser": "codespace"
+  }
