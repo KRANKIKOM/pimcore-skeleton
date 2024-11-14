@@ -71,6 +71,7 @@ yarn.lock
 docker-compose.yml
 Dockerfile.compose
 Dockerfile.apache.compose
+Dockerfile.debug.compose
 
 # Assets built by webpack
 !public/assets
