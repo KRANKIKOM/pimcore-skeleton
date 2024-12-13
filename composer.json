@@ -13,18 +13,14 @@
   "minimum-stability": "dev",
   "prefer-stable": true,
   "require": {
-    "pimcore/pimcore": "^11.1",
-    "pimcore/admin-ui-classic-bundle": "^1.2",
-    "symfony/runtime": "^6.2",
+    "krankikom/pimcore-jetpakk": "^2.0.0",
+    "pimcore/admin-ui-classic-bundle": "^1.7.2",
+    "pimcore/pimcore": "^11.5",
+    "pimcore/platform-version": "^2024.4",
     "symfony/dotenv": "^6.2",
-    "krankikom/pimcore-jetpakk": "@dev"
+    "symfony/runtime": "^6.2"
   },
   "require-dev": {
-    "codeception/codeception": "^5.0.3",
-    "codeception/module-symfony": "^3.1.0"
-  },
-  "suggest": {
-    "pimcore/data-hub": "Universal data interface for GraphQL, CSV and other formats"
   },
   "autoload": {
     "psr-4": {
