@@ -1,1 +1,0 @@
-vendor/krankikom/pimcore-jetpakk/devsetup/Vagrantfile
