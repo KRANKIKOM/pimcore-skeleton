@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Pimcore
  *
@@ -14,6 +12,8 @@ declare(strict_types=1);
  *  @copyright  Copyright (c) Pimcore GmbH (http://www.pimcore.org)
  *  @license    http://www.pimcore.org/license     GPLv3 and PCL
  */
+
+declare(strict_types=1);
 
 namespace App\EventSubscriber;
 
