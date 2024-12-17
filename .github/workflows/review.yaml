@@ -1,0 +1,134 @@
+name: Review
+on: [ pull_request ]
+
+env:
+  COMPOSER_REPO_URL: "https://repo.packagist.com/krankikom/"
+  COMPOSER_AUTH_TOKEN: "c8a7ecca281bc7a6682a01fc5cb406a73aabf86ed5ffa81285049e650b41"
+  COMPOSER_AUTH: "{\"http-basic\": {\"repo.packagist.com\": {\"username\": \"krankikom\", \"password\": \"c8a7ecca281bc7a6682a01fc5cb406a73aabf86ed5ffa81285049e650b41\"}}}"
+
+jobs:
+  psalm:
+    name: Psalm
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        php_version:
+          - "8.3"
+        dependencies:
+          - "locked"
+    steps:
+      - name: Check out code into the workspace
+        uses: actions/checkout@v4
+      - name: "Install PHP with extensions"
+        uses: "shivammathur/setup-php@v2"
+        with:
+          coverage: "none"
+          php-version: "${{ matrix.php_version }}"
+      - name: "Install locked dependencies from composer.lock"
+        run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
+      - name: Psalm
+        run: "vendor/bin/psalm --long-progress --no-cache"
+  phpcs:
+      name: phpcs
+      runs-on: ubuntu-24.04
+      strategy:
+          matrix:
+              php_version:
+                  - "8.3"
+              dependencies:
+                  - "locked"
+      steps:
+          - name: Check out code into the workspace
+            uses: actions/checkout@v4
+          - name: "Install PHP with extensions"
+            uses: "shivammathur/setup-php@v2"
+            with:
+                coverage: "none"
+                php-version: "${{ matrix.php_version }}"
+          - name: "Install locked dependencies from composer.lock"
+            run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
+          - name: Phpcs
+            run: "vendor/bin/phpcs --standard=phpcs-ruleset.xml"
+  twigcs:
+      name: twigcs
+      runs-on: ubuntu-24.04
+      strategy:
+          matrix:
+              php_version:
+                  - "8.3"
+              dependencies:
+                  - "locked"
+      steps:
+          - name: Check out code into the workspace
+            uses: actions/checkout@v4
+          - name: "Install PHP with extensions"
+            uses: "shivammathur/setup-php@v2"
+            with:
+                coverage: "none"
+                php-version: "${{ matrix.php_version }}"
+          - name: "Install locked dependencies from composer.lock"
+            run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
+          - name: Twigcs
+            run: "vendor/bin/twigcs"
+  reviewdog:
+    name: Reviewdog
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        php_version:
+          - "8.3"
+        dependencies:
+          - "locked"
+    permissions:
+        checks: write
+        contents: read
+        pull-requests: write
+    steps:
+        - name: Check out code into the workspace
+          uses: actions/checkout@v4
+        - name: Setup reviewdog
+          uses: reviewdog/action-setup@v1
+        - name: "Install PHP with extensions"
+          uses: "shivammathur/setup-php@v2"
+          with:
+            coverage: "none"
+            php-version: "${{ matrix.php_version }}"
+        - name: "Install locked dependencies from composer.lock"
+          run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
+        - name: phpcs and reviewdog
+          env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+              vendor/bin/phpcs --standard=phpcs-ruleset.xml --report=checkstyle | reviewdog -f=checkstyle -reporter=github-pr-review -name="PHP CodeSniffer" -filter-mode=nofilter
+        - name: phpcs-fixer
+          run: vendor/bin/phpcbf -n -v --extensions=php --standard=phpcs-ruleset.xml --ignore=src/Migrations/ src/ bundles/
+          continue-on-error: true
+          env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - name: suggester / PHPCS
+          uses: reviewdog/action-suggester@v1
+          with:
+              tool_name: vendor/bin/phpcbf
+              github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
+        - name: psalm + reviewdog
+          env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+            vendor/bin/psalm --output-format=checkstyle | reviewdog -f=checkstyle -reporter=github-pr-review -name="Psalm Check"
+          continue-on-error: true
+        - name: psalter
+          env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+              psalm_command=`vendor/bin/psalm --no-cache --no-progress --monochrome | grep alter | sed 's/--dry-run//'`; vendor/bin/psalm $psalm_command
+          continue-on-error: true
+        - name: suggester / Psalm
+          uses: reviewdog/action-suggester@v1
+          with:
+            tool_name: vendor/bin/psalm
+            github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
+        - name: twigcs + reviewdog
+          run: |
+            vendor/bin/twigcs --reporter checkstyle | reviewdog -f=checkstyle -reporter=github-pr-review -name="TwigCS Check"
+          env:
+            REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
