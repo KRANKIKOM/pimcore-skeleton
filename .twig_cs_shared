@@ -1,0 +1,8 @@
+<?php
+$finderTemplates = FriendsOfTwig\Twigcs\Finder\TemplateFinder::create()->in(__DIR__.'/templates');
+
+$config = \FriendsOfTwig\Twigcs\Config\Config::create()
+->setName('orthomol-config')
+->setSeverity('warning')
+->setRuleSet(App\Twigcs\CustomTwigRuleset::class)
+->addFinder($finderTemplates);
