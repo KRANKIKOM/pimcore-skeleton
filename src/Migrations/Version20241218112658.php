@@ -22,7 +22,12 @@ class Version20241218112658 extends AbstractPimcoreMigration
         $this->write("Getting root document");
         $root = Document\Page::getByPath('/');
 
-        $this->write("Creating includes folder".$root->getId());
+        if (!$root) {
+            $this->write("Root document not found");
+            return;
+        }
+
+        $this->write("Creating includes folder");
         $includesFolder = new Document\Folder();
         $includesFolder->setParentId($root->getId());
         $includesFolder->setKey('includes');
@@ -45,7 +50,6 @@ class Version20241218112658 extends AbstractPimcoreMigration
         $snippedHeader->save();
 
         $this->write("Setting footer and header properties on root document");
-        
         $root->setProperty('footer', 'document', $snippedFooter, false, true);
         $root->setProperty('header', 'document', $snippedHeader, false, true);
         $root->save();
@@ -59,6 +63,11 @@ class Version20241218112658 extends AbstractPimcoreMigration
     {
         // Remove properties from root document
         $root = Document\Page::getByPath('/');
+        if (!$root) {
+            $this->write("Root document not found");
+            return;
+        }
+
         $root->removeProperty('footer');
         $root->removeProperty('header');
         $root->save();
