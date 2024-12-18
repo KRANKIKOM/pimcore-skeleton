@@ -39,7 +39,7 @@ class Web2printController extends FrontendController
 
         $paramsBag = array_merge($request->request->all(), $request->query->all(), $paramsBag);
 
-        if ($this->document->getProperty('hide-layout')) {
+        if ($this->document?->getProperty('hide-layout')) {
             return $this->render('web2print/default_no_layout.html.twig', $paramsBag);
         } else {
             return $this->render('web2print/default.html.twig', $paramsBag);
@@ -59,6 +59,8 @@ class Web2printController extends FrontendController
             'document' => $this->document
         ];
 
+        assert(null !== $this->document);
+
         foreach ($request->attributes as $key => $value) {
             $paramsBag[$key] = $value;
         }
@@ -66,14 +68,15 @@ class Web2printController extends FrontendController
         $allChildren = [];
 
         //prepare children for include
-        foreach ($this->document->getAllChildren() as $child) {
+        foreach ($this->document->getChildren() as $child) {
             if ($child instanceof Hardlink) {
                 $child = Hardlink\Service::wrap($child);
             }
 
-            $child->setProperty('hide-layout', 'bool', true, false, true);
-
-            $allChildren[] = $child;
+            if (!is_bool($child) && !is_null($child)) {
+                $child->setProperty('hide-layout', 'bool', true, false, true);
+                $allChildren[] = $child;
+            }
         }
 
         $paramsBag['allChildren'] = $allChildren;

@@ -12,13 +12,13 @@
 
     {% if has(content) %}
         {# Define the scripts to be attached per block type #}
-        {% set scriptsPerBlock = {
+        {% set scripts_per_block = {
             'country-map': ['map.js']
         } %}
 
         {# Iterate over the block type usage counter and attach scripts #}
 
-        {% for block_name, scripts in scriptsPerBlock %}
+        {% for block_name, scripts in scripts_per_block %}
             {% if block_name in blocklist %}
                 {% for script in scripts %}
                     <script defer src="/assets/js/{{ script }}"></script>
