@@ -136,7 +136,6 @@ jobs:
   semgrep:
     name: Semgrep
     runs-on: ubuntu-24.04
-
     container:
       # A Docker image with Semgrep installed. Do not change this.
       image: semgrep/semgrep
@@ -145,19 +144,35 @@ jobs:
     if: (github.actor != 'dependabot[bot]')
 
     steps:
-      # Fetch project source with GitHub Actions Checkout. Use either v3 or v4.
+      # Fetch project source with GitHub Actions Checkout.
       - uses: actions/checkout@v4
-      # Run the "semgrep scan" command on the command line of the docker image.
-      - run: |
-          semgrep scan --config auto --sarif --autofix>semgrep.sarif 
+
+      # 1. Copy the original source
+      - name: Backup original source
+        run: cp -r . /tmp/original
+
+      # 2. Run Semgrep, generating a SARIF file and also autofixing
+      - name: Run Semgrep scan & autofix
+        run: |
+          semgrep scan --config auto --sarif --autofix > semgrep.sarif
           cat semgrep.sarif
+        continue-on-error: true
+
+      # 3. Generate a patch file from the changes
+      - name: Generate Semgrep fixes patch
+        run: |
           diff -Naur /tmp/original . > semgrep-fixes.patch || true
           cat semgrep-fixes.patch
+
+      # 4. Upload SARIF report so reviewdog can parse
       - name: Upload Semgrep SARIF artifact
         uses: actions/upload-artifact@v3
         with:
           name: semgrep-report
-          path: semgrep.sarif          
+          path: semgrep.sarif
+        continue-on-error: true
+
+      # 5. Upload the patch file for later use
       - name: Upload Semgrep fixes
         uses: actions/upload-artifact@v3
         with:
@@ -385,5 +400,22 @@ jobs:
             fi
           env:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            continue-on-error: true
+
+        - name: Download Semgrep fixes artifact
+          uses: actions/download-artifact@v3
+          with:
+            name: semgrep-fixes
+            path: .
           continue-on-error: true
+
+        - name: Apply Semgrep patch
+          run: patch -p1 < semgrep-fixes.patch
+          continue-on-error: true
+
+        - name: Semgrep fix suggestions
+          uses: reviewdog/action-suggester@v1
+          with:
+            tool_name: semgrep
+            github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
 
