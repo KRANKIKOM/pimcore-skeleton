@@ -25,6 +25,7 @@ jobs:
           path: vendor
           key: ${{ steps.cache_key.outputs.key }}
           restore-keys: |
+            ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
             ${{ runner.os }}-composer-
 
       - name: Check Exact Cache Hit
@@ -74,10 +75,11 @@ jobs:
           php-version: "${{ matrix.php_version }}"
       - name: Run Psalm
         id: psalm_check
-        continue-on-error: true
         run: |
+          set +e
           vendor/bin/psalm --long-progress --no-cache --output-format=checkstyle > psalm-report.xml
-          echo "::set-output name=exit_code::$?"
+          psalm_exit_code=$?
+          echo "::set-output name=exit_code::$psalm_exit_code"
       - name: Upload Psalm artifact
         uses: actions/upload-artifact@v3
         with:
@@ -114,10 +116,11 @@ jobs:
           php-version: "${{ matrix.php_version }}"
       - name: Run phpcs
         id: phpcs_check
-        continue-on-error: true
         run: |
+          set +e
           vendor/bin/phpcs --standard=phpcs-ruleset.xml --report=checkstyle > phpcs-report.xml
-          echo "::set-output name=exit_code::$?"
+          phpcs_exit_code=$?
+          echo "::set-output name=exit_code::$phpcs_exit_code"
       - name: Upload PHPCS artifact
         uses: actions/upload-artifact@v3
         with:
@@ -154,10 +157,11 @@ jobs:
           php-version: "${{ matrix.php_version }}"
       - name: Run Twigcs
         id: twigcs_check
-        continue-on-error: true
         run: |
+          set +e
           vendor/bin/twigcs --reporter checkstyle > twigcs-report.xml
-          echo "::set-output name=exit_code::$?"
+          twigcs_exit_code=$?
+          echo "::set-output name=exit_code::$twigcs_exit_code"
       - name: Upload Twigcs artifact
         uses: actions/upload-artifact@v3
         with:
