@@ -55,7 +55,7 @@ jobs:
         with:
           coverage: "none"
           php-version: "8.3"
-      - name: "Install locked dependencies from composer.lock"
+      - name: "Composer install"
         if: steps.cache_check.outputs.exact_hit != 'true'
         run: |          
           composer install --no-scripts --no-interaction --no-progress --no-suggest
