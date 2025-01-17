@@ -22,14 +22,14 @@ jobs:
       - uses: actions/cache/restore@v4
         id: cache_restore
         with:
-          path: path/to/dependencies
+          path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
 
       - uses: actions/cache/restore@v4
         id: cache_restore_fallback
         if: steps.cache_restore.outputs.cache-hit != 'true'
         with:
-          path: path/to/dependencies
+          path: vendor
           key: ${{ runner.os }}-composer-
   
             
