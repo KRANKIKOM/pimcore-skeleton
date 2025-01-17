@@ -251,6 +251,8 @@ jobs:
           uses: actions/checkout@v4
         - name: Setup reviewdog
           uses: reviewdog/action-setup@v1
+        
+      
         - name: Download Psalm artifact
           uses: actions/download-artifact@v3
           with:
@@ -272,6 +274,23 @@ jobs:
           env:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           continue-on-error: true
+
+      
+        - name: Psalm Fix Suggestions
+          env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          run: |
+              psalm_command=`vendor/bin/psalm --no-cache --no-progress --monochrome | grep alter | sed 's/--dry-run//'`; vendor/bin/psalm $psalm_command
+          continue-on-error: true
+
+        - name: Psalm Fix Suggestions - Add to PR
+          uses: reviewdog/action-suggester@v1
+          with:
+            tool_name: Psalm Fix Suggestions
+            github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
+
+
+
         - name: Download PHPCS artifact
           uses: actions/download-artifact@v3
           with:
@@ -293,6 +312,21 @@ jobs:
           env:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           continue-on-error: true
+        - name: PHPCS Fix Suggestions
+          run: |
+            DIRS="src/"
+            if [ -d "bundles" ]; then
+              DIRS="$DIRS bundles/"
+            fi
+            vendor/bin/phpcbf -n -v --extensions=php --standard=phpcs-ruleset.xml --ignore=src/Migrations/ $DIRS
+          continue-on-error: true
+          env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - name: PHPCS Fix Suggestions - Add to PR
+          uses: reviewdog/action-suggester@v1
+          with:
+              tool_name: PHPCCS Fix Suggestions
+              github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
         - name: Download Twigcs artifact
           uses: actions/download-artifact@v3
           with:
