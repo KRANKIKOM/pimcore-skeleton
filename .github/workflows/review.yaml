@@ -26,8 +26,14 @@ jobs:
           php-version: "${{ matrix.php_version }}"
       - name: "Install locked dependencies from composer.lock"
         run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
-      - name: Psalm
-        run: "vendor/bin/psalm --long-progress --no-cache"
+      - name: Run Psalm
+        run: |
+          vendor/bin/psalm --long-progress --no-cache --output-format=checkstyle > psalm-report.xml
+      - name: Upload Psalm artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: psalm-report
+          path: psalm-report.xml
   phpcs:
       name: phpcs
       runs-on: ubuntu-24.04
@@ -47,8 +53,14 @@ jobs:
                 php-version: "${{ matrix.php_version }}"
           - name: "Install locked dependencies from composer.lock"
             run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
-          - name: Phpcs
-            run: "vendor/bin/phpcs --standard=phpcs-ruleset.xml"
+          - name: Run phpcs
+            run: |
+              vendor/bin/phpcs --standard=phpcs-ruleset.xml --report=checkstyle > phpcs-report.xml
+          - name: Upload PHPCS artifact
+            uses: actions/upload-artifact@v3
+            with:
+              name: phpcs-report
+              path: phpcs-report.xml
   twigcs:
       name: twigcs
       runs-on: ubuntu-24.04
@@ -69,7 +81,13 @@ jobs:
           - name: "Install locked dependencies from composer.lock"
             run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
           - name: Twigcs
-            run: "vendor/bin/twigcs"
+            run: |
+              vendor/bin/twigcs --reporter checkstyle > twigcs-report.xml
+          - name: Upload Twigcs artifact
+            uses: actions/upload-artifact@v3
+            with:
+              name: twigcs-report
+              path: twigcs-report.xml
   reviewdog:
     name: Reviewdog
     runs-on: ubuntu-24.04
@@ -83,52 +101,39 @@ jobs:
         checks: write
         contents: read
         pull-requests: write
+    needs: [psalm, phpcs, twigcs]
     steps:
         - name: Check out code into the workspace
           uses: actions/checkout@v4
         - name: Setup reviewdog
           uses: reviewdog/action-setup@v1
-        - name: "Install PHP with extensions"
-          uses: "shivammathur/setup-php@v2"
+        - name: Download Psalm artifact
+          uses: actions/download-artifact@v3
           with:
-            coverage: "none"
-            php-version: "${{ matrix.php_version }}"
-        - name: "Install locked dependencies from composer.lock"
-          run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
-        - name: phpcs and reviewdog
-          env:
-              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: |
-              vendor/bin/phpcs --standard=phpcs-ruleset.xml --report=checkstyle | reviewdog -f=checkstyle -reporter=github-pr-review -name="PHP CodeSniffer" -filter-mode=nofilter
-        - name: phpcs-fixer
-          run: vendor/bin/phpcbf -n -v --extensions=php --standard=phpcs-ruleset.xml --ignore=src/Migrations/ src/
-          continue-on-error: true
-          env:
-              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        - name: suggester / PHPCS
-          uses: reviewdog/action-suggester@v1
+            name: psalm-report
+            path: .
+        - name: Reviewdog for Psalm
+          run: cat psalm-report.xml | reviewdog \
+            -f=checkstyle \
+            -reporter=github-pr-review \
+            -name="Psalm Check"
+        - name: Download PHPCS artifact
+          uses: actions/download-artifact@v3
           with:
-              tool_name: vendor/bin/phpcbf
-              github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
-        - name: psalm + reviewdog
-          env:
-              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: |
-            vendor/bin/psalm --output-format=checkstyle | reviewdog -f=checkstyle -reporter=github-pr-review -name="Psalm Check"
-          continue-on-error: true
-        - name: psalter
-          env:
-              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: |
-              psalm_command=`vendor/bin/psalm --no-cache --no-progress --monochrome | grep alter | sed 's/--dry-run//'`; vendor/bin/psalm $psalm_command
-          continue-on-error: true
-        - name: suggester / Psalm
-          uses: reviewdog/action-suggester@v1
+            name: phpcs-report
+            path: .
+        - name: Reviewdog for PHPCS
+          run: cat phpcs-report.xml | reviewdog \
+            -f=checkstyle \
+            -reporter=github-pr-review \
+            -name="PHP CodeSniffer"
+        - name: Download Twigcs artifact
+          uses: actions/download-artifact@v3
           with:
-            tool_name: vendor/bin/psalm
-            github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
-        - name: twigcs + reviewdog
-          run: |
-            vendor/bin/twigcs --reporter checkstyle | reviewdog -f=checkstyle -reporter=github-pr-review -name="TwigCS Check"
-          env:
-            REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            name: twigcs-report
+            path: .
+        - name: Reviewdog for Twigcs
+          run: cat twigcs-report.xml | reviewdog \
+            -f=checkstyle \
+            -reporter=github-pr-review \
+            -name="TwigCS Check"
