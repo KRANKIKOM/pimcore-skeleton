@@ -120,16 +120,23 @@ jobs:
             -f=checkstyle \
             -reporter=github-pr-review \
             -name="Psalm Check"
+          env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         - name: Download PHPCS artifact
           uses: actions/download-artifact@v3
           with:
             name: phpcs-report
             path: .
         - name: Reviewdog for PHPCS
-          run: cat phpcs-report.xml | reviewdog \
+          run: |
+            cat phpcs-report.xml; \
+            cat phpcs-report.xml \
+            | reviewdog \
             -f=checkstyle \
             -reporter=github-pr-review \
             -name="PHP CodeSniffer"
+          env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         - name: Download Twigcs artifact
           uses: actions/download-artifact@v3
           with:
@@ -140,3 +147,5 @@ jobs:
             -f=checkstyle \
             -reporter=github-pr-review \
             -name="TwigCS Check"
+          env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
