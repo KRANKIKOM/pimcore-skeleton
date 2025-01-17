@@ -18,6 +18,7 @@ jobs:
         run: |
           HASH="${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}"
           echo "key=$HASH" >> $GITHUB_OUTPUT
+          echo "$HASH" vendor/cache.key
       - name: Cache Composer packages
         id: composer_cache
         uses: actions/cache@v3
@@ -33,9 +34,16 @@ jobs:
         run: |
           echo "cache-hit: ${{ steps.composer_cache.outputs.cache-hit }}"
           echo "key: ${{ steps.cache_key.outputs.key }}"
-          echo "cache-primary-key: ${{ steps.composer_cache.cache-primary-key }}"
+          cache_result_hash=""
+          
+          if [ -f vendor/cache.key ]; then
+            echo "cache.key file exists - we did any sort of cache hit"
+            cache_result_hash=$(cat vendor/cache.key)
+          else
+            echo "cache.key does not exist"
+          fi
           if [ "${{ steps.composer_cache.outputs.cache-hit }}" = "true" ] && \
-              [ "${{ steps.cache_key.outputs.key }}" = "${{ steps.composer_cache.cache-primary-key }}" ]; then
+              [ "${{ steps.cache_key.outputs.key }}" = "$cache_result_hash" ]; then
             echo "exact_hit=true" >> $GITHUB_OUTPUT
             echo "EXACT HIT"
           else
@@ -44,6 +52,7 @@ jobs:
           fi
       - name: "Install PHP with extensions"
         uses: shivammathur/setup-php@v2
+        if: steps.cache_check.outputs.exact_hit != 'true'
         with:
           coverage: "none"
           php-version: "8.3"
