@@ -154,10 +154,13 @@ jobs:
 
       # 2. Run Semgrep, generating a SARIF file and also autofixing
       - name: Run Semgrep scan & autofix
-        run: |
+        run: |          
           semgrep scan --config auto --sarif --autofix > semgrep.sarif
           cat semgrep.sarif
         continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEMGREP_APP_TOKEN: af5144a2a3a7e50e548867b06e20d5c114b9f822625f1428a8ac15adacef191c
 
       # 4. Upload SARIF report so reviewdog can parse
       - name: Upload Semgrep SARIF artifact
