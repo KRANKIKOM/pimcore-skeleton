@@ -88,6 +88,7 @@ jobs:
       
       - uses: actions/cache/save@v4
         id: cache_save
+        if: steps.cache_restore.outputs.cache-hit != 'true'
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
@@ -106,7 +107,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
       - name: Restore composer cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
@@ -199,7 +200,7 @@ jobs:
       - name: Check out code into the workspace
         uses: actions/checkout@v4
       - name: Restore composer cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
@@ -240,7 +241,7 @@ jobs:
       - name: Check out code into the workspace
         uses: actions/checkout@v4
       - name: Restore composer cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
