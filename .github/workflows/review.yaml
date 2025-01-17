@@ -158,12 +158,6 @@ jobs:
           cat semgrep.sarif
         continue-on-error: true
 
-      # 3. Generate a patch file from the changes
-      - name: Generate Semgrep fixes patch
-        run: |
-          diff -Naur /tmp/original . > semgrep-fixes.patch || true
-          cat semgrep-fixes.patch
-
       # 4. Upload SARIF report so reviewdog can parse
       - name: Upload Semgrep SARIF artifact
         uses: actions/upload-artifact@v3
@@ -172,7 +166,18 @@ jobs:
           path: semgrep.sarif
         continue-on-error: true
 
-      # 5. Upload the patch file for later use
+      # 5. Generate a patch file from the changes
+      - name: Generate Semgrep fixes patch
+        run: |
+          if [ -f semgrep.sarif ]; then
+            rm semgrep.sarif
+            diff -Naur /tmp/original . > semgrep-fixes.patch || true
+            cat semgrep-fixes.patch
+          else
+            echo "semgrep.sarif not found, skipping patch generation"
+          fi
+
+      # 6. Upload the patch file for later use
       - name: Upload Semgrep fixes
         uses: actions/upload-artifact@v3
         with:
@@ -410,7 +415,12 @@ jobs:
           continue-on-error: true
 
         - name: Apply Semgrep patch
-          run: patch -p1 < semgrep-fixes.patch
+          run: |
+            if [ -f semgrep-fixes.patch ] && [ -s semgrep-fixes.patch ]; then
+              patch -p1 -f < semgrep-fixes.patch || true
+            else
+              echo "semgrep-fixes.patch not found or is empty, skipping patch application"
+            fi
           continue-on-error: true
 
         - name: Semgrep fix suggestions
