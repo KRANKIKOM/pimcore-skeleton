@@ -286,7 +286,7 @@ jobs:
         - name: Psalm Fix Suggestions - Add to PR
           uses: reviewdog/action-suggester@v1
           with:
-            tool_name: Psalm Fix Suggestions
+            tool_name: psalm
             github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
 
 
@@ -325,7 +325,7 @@ jobs:
         - name: PHPCS Fix Suggestions - Add to PR
           uses: reviewdog/action-suggester@v1
           with:
-              tool_name: PHPCCS Fix Suggestions
+              tool_name: phpcs
               github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
         - name: Download Twigcs artifact
           uses: actions/download-artifact@v3
