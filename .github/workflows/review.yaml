@@ -26,7 +26,8 @@ jobs:
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
 
       - uses: actions/cache/restore@v4
-        id: cache_restore_fallbox
+        id: cache_restore_fallback
+        if: steps.cache_restore.outputs.cache-hit != 'true'
         with:
           path: path/to/dependencies
           key: ${{ runner.os }}-composer-
