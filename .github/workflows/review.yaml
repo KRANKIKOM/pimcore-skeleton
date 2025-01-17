@@ -13,17 +13,18 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
-      - name: "Install PHP with extensions"
-        uses: shivammathur/setup-php@v2
-        with:
-          coverage: "none"
-          php-version: "8.3"
       - name: Cache Composer dependencies
         id: composer_cache
         uses: actions/cache@v3
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+      - name: "Install PHP with extensions"
+        uses: shivammathur/setup-php@v2
+        with:
+          coverage: "none"
+          php-version: "8.3"  
+        if: steps.composer_cache.outputs.cache-hit != 'true'
       - name: "Install locked dependencies from composer.lock"
         if: steps.composer_cache.outputs.cache-hit != 'true'
         run: composer install --no-scripts --no-interaction --no-progress --no-suggest
