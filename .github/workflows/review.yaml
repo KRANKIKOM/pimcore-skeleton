@@ -76,7 +76,14 @@ jobs:
       - name: "Composer install"
         if: steps.cache_restore.outputs.cache-hit != 'true'
         run: |          
+          KEEP_LOCKFILE=false
+          if [ -f composer.lock ]; then
+            KEEP_LOCKFILE=true
+          fi
           composer install --no-scripts --no-interaction --no-progress --no-suggest
+          if [ "$KEEP_LOCKFILE" = "false" ]; then
+            rm -f composer.lock
+          fi
           echo "$HASH" >vendor/cache.key
       
       - uses: actions/cache/save@v4
