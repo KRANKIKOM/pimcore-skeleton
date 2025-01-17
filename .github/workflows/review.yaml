@@ -7,9 +7,30 @@ env:
   COMPOSER_AUTH: "{\"http-basic\": {\"repo.packagist.com\": {\"username\": \"krankikom\", \"password\": \"c8a7ecca281bc7a6682a01fc5cb406a73aabf86ed5ffa81285049e650b41\"}}}"
 
 jobs:
+  composer-cache:
+    name: Composer cache
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: "Install PHP with extensions"
+        uses: shivammathur/setup-php@v2
+        with:
+          coverage: "none"
+          php-version: "8.3"
+      - name: "Cache composer dependencies"
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+      - name: "Install locked dependencies from composer.lock"
+        run: composer install --no-scripts --no-interaction --no-progress --no-suggest
+
   psalm:
     name: Psalm
     runs-on: ubuntu-24.04
+    needs: [composer-cache]
     strategy:
       matrix:
         php_version:
@@ -19,13 +40,17 @@ jobs:
     steps:
       - name: Check out code into the workspace
         uses: actions/checkout@v4
+      - name: Restore composer cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
       - name: "Install PHP with extensions"
         uses: "shivammathur/setup-php@v2"
         with:
           coverage: "none"
           php-version: "${{ matrix.php_version }}"
-      - name: "Install locked dependencies from composer.lock"
-        run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
       - name: Run Psalm
         run: |
           vendor/bin/psalm --long-progress --no-cache --output-format=checkstyle > psalm-report.xml
@@ -34,60 +59,73 @@ jobs:
         with:
           name: psalm-report
           path: psalm-report.xml
+
   phpcs:
-      name: phpcs
-      runs-on: ubuntu-24.04
-      strategy:
-          matrix:
-              php_version:
-                  - "8.3"
-              dependencies:
-                  - "locked"
-      steps:
-          - name: Check out code into the workspace
-            uses: actions/checkout@v4
-          - name: "Install PHP with extensions"
-            uses: "shivammathur/setup-php@v2"
-            with:
-                coverage: "none"
-                php-version: "${{ matrix.php_version }}"
-          - name: "Install locked dependencies from composer.lock"
-            run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
-          - name: Run phpcs
-            run: |
-              vendor/bin/phpcs --standard=phpcs-ruleset.xml --report=checkstyle > phpcs-report.xml
-          - name: Upload PHPCS artifact
-            uses: actions/upload-artifact@v3
-            with:
-              name: phpcs-report
-              path: phpcs-report.xml
+    name: phpcs
+    runs-on: ubuntu-24.04
+    needs: [composer-cache]
+    strategy:
+      matrix:
+        php_version:
+          - "8.3"
+        dependencies:
+          - "locked"
+    steps:
+      - name: Check out code into the workspace
+        uses: actions/checkout@v4
+      - name: Restore composer cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+      - name: "Install PHP with extensions"
+        uses: "shivammathur/setup-php@v2"
+        with:
+          coverage: "none"
+          php-version: "${{ matrix.php_version }}"
+      - name: Run phpcs
+        run: |
+          vendor/bin/phpcs --standard=phpcs-ruleset.xml --report=checkstyle > phpcs-report.xml
+      - name: Upload PHPCS artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: phpcs-report
+          path: phpcs-report.xml
+
   twigcs:
-      name: twigcs
-      runs-on: ubuntu-24.04
-      strategy:
-          matrix:
-              php_version:
-                  - "8.3"
-              dependencies:
-                  - "locked"
-      steps:
-          - name: Check out code into the workspace
-            uses: actions/checkout@v4
-          - name: "Install PHP with extensions"
-            uses: "shivammathur/setup-php@v2"
-            with:
-                coverage: "none"
-                php-version: "${{ matrix.php_version }}"
-          - name: "Install locked dependencies from composer.lock"
-            run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
-          - name: Twigcs
-            run: |
-              vendor/bin/twigcs --reporter checkstyle > twigcs-report.xml
-          - name: Upload Twigcs artifact
-            uses: actions/upload-artifact@v3
-            with:
-              name: twigcs-report
-              path: twigcs-report.xml
+    name: twigcs
+    runs-on: ubuntu-24.04
+    needs: [composer-cache]
+    strategy:
+      matrix:
+        php_version:
+          - "8.3"
+        dependencies:
+          - "locked"
+    steps:
+      - name: Check out code into the workspace
+        uses: actions/checkout@v4
+      - name: Restore composer cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+      - name: "Install PHP with extensions"
+        uses: "shivammathur/setup-php@v2"
+        with:
+          coverage: "none"
+          php-version: "${{ matrix.php_version }}"
+      - name: Twigcs
+        run: |
+          vendor/bin/twigcs --reporter checkstyle > twigcs-report.xml
+      - name: Upload Twigcs artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: twigcs-report
+          path: twigcs-report.xml
+
   reviewdog:
     name: Reviewdog
     runs-on: ubuntu-24.04
@@ -144,7 +182,8 @@ jobs:
             name: twigcs-report
             path: .
         - name: Reviewdog for Twigcs
-          run: cat twigcs-report.xml; cat twigcs-report.xml | reviewdog \
+          run: cat twigcs-report.xml; \
+            cat twigcs-report.xml | reviewdog \
             -f=checkstyle \
             -reporter=github-pr-review \
             -name="TwigCS Check"
