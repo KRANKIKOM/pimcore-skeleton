@@ -13,21 +13,42 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+      - name: Generate Cache Key
+        id: cache_key
+        run: |
+          HASH="${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}"
+          echo "key=$HASH" >> $GITHUB_OUTPUT
+      - name: Cache Composer packages
+        id: composer_cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ steps.cache_key.outputs.key }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Check Exact Cache Hit
+        id: cache_check
+        run: |
+          echo "cache-hit: ${{ steps.composer_cache.outputs.cache-hit }}"
+          echo "key: ${{ steps.cache_key.outputs.key }}"
+          echo "cache-primary-key: ${{ steps.composer_cache.cache-primary-key }}"
+          if [ "${{ steps.composer_cache.outputs.cache-hit }}" = "true" ] && \
+              [ "${{ steps.cache_key.outputs.key }}" = "${{ steps.composer_cache.cache-primary-key }}" ]; then
+            echo "exact_hit=true" >> $GITHUB_OUTPUT
+            echo "EXACT HIT"
+          else
+            echo "exact_hit=false" >> $GITHUB_OUTPUT
+            echo "NO EXACT HIT"
+          fi
       - name: "Install PHP with extensions"
         uses: shivammathur/setup-php@v2
         with:
           coverage: "none"
           php-version: "8.3"
-      - name: Cache Composer dependencies
-        id: composer_cache
-        uses: actions/cache@v3
-        with:
-          path: vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
       - name: "Install locked dependencies from composer.lock"
-        if: steps.composer_cache.outputs.cache-hit != 'true'
+        if: steps.cache_check.outputs.exact_hit != 'true'
         run: composer install --no-scripts --no-interaction --no-progress --no-suggest
-
   psalm:
     name: Psalm
     runs-on: ubuntu-24.04
