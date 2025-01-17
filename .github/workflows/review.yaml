@@ -113,13 +113,21 @@ jobs:
           coverage: "none"
           php-version: "${{ matrix.php_version }}"
       - name: Run phpcs
+        id: phpcs_check
+        continue-on-error: true
         run: |
           vendor/bin/phpcs --standard=phpcs-ruleset.xml --report=checkstyle > phpcs-report.xml
+          echo "::set-output name=exit_code::$?"
       - name: Upload PHPCS artifact
         uses: actions/upload-artifact@v3
         with:
           name: phpcs-report
           path: phpcs-report.xml
+      - name: Fail job if PHPCS failed
+        if: steps.phpcs_check.outputs.exit_code != '0'
+        run: |
+          echo "PHPCS returned exit code ${{ steps.phpcs_check.outputs.exit_code }}, failing job..."
+          exit 1
 
   twigcs:
     name: twigcs
@@ -144,14 +152,22 @@ jobs:
         with:
           coverage: "none"
           php-version: "${{ matrix.php_version }}"
-      - name: Twigcs
+      - name: Run Twigcs
+        id: twigcs_check
+        continue-on-error: true
         run: |
           vendor/bin/twigcs --reporter checkstyle > twigcs-report.xml
+          echo "::set-output name=exit_code::$?"
       - name: Upload Twigcs artifact
         uses: actions/upload-artifact@v3
         with:
           name: twigcs-report
           path: twigcs-report.xml
+      - name: Fail job if Twigcs failed
+        if: steps.twigcs_check.outputs.exit_code != '0'
+        run: |
+          echo "Twigcs returned exit code ${{ steps.twigcs_check.outputs.exit_code }}, failing job..."
+          exit 1
 
   reviewdog:
     name: Reviewdog
