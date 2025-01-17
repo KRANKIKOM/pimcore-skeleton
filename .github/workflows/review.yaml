@@ -17,8 +17,7 @@ jobs:
         id: cache_key
         run: |
           HASH="${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}"
-          echo "key=$HASH" >> $GITHUB_OUTPUT
-          echo "$HASH" >vendor/cache.key
+          echo "key=$HASH" >> $GITHUB_OUTPUT          
       - name: Cache Composer packages
         id: composer_cache
         uses: actions/cache@v3
@@ -58,7 +57,9 @@ jobs:
           php-version: "8.3"
       - name: "Install locked dependencies from composer.lock"
         if: steps.cache_check.outputs.exact_hit != 'true'
-        run: composer install --no-scripts --no-interaction --no-progress --no-suggest
+        run: |          
+          composer install --no-scripts --no-interaction --no-progress --no-suggest
+          echo "$HASH" >vendor/cache.key
   psalm:
     name: Psalm
     runs-on: ubuntu-24.04
