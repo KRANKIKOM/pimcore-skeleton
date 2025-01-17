@@ -148,22 +148,16 @@ jobs:
       # Fetch project source with GitHub Actions Checkout. Use either v3 or v4.
       - uses: actions/checkout@v4
       # Run the "semgrep scan" command on the command line of the docker image.
-      - run: semgrep scan --config auto --sarif --output-file=semgrep.sarif 
+      - run: |
+          semgrep scan --config auto --sarif --autofix>semgrep.sarif 
+          cat semgrep.sarif
+          diff -Naur /tmp/original . > semgrep-fixes.patch || true
+          cat semgrep-fixes.patch
       - name: Upload Semgrep SARIF artifact
         uses: actions/upload-artifact@v3
         with:
           name: semgrep-report
-          path: semgrep.sarif
-      # Run semgrep with autofix and generate patch
-      - name: Run Semgrep autofix
-        run: |
-          # Store original content
-          cp -r . /tmp/original
-          # Run autofix
-          semgrep --autofix --config auto
-          # Create patch by comparing with original
-          diff -Naur /tmp/original . > semgrep-fixes.patch || true
-          cat semgrep-fixes.patch
+          path: semgrep.sarif          
       - name: Upload Semgrep fixes
         uses: actions/upload-artifact@v3
         with:
