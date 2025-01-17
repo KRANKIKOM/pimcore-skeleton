@@ -149,6 +149,7 @@ jobs:
           with:
             name: psalm-report
             path: .
+          continue-on-error: true
         - name: Reviewdog for Psalm
           run: |
             if [ -f psalm-report.xml ]; then
@@ -169,6 +170,7 @@ jobs:
           with:
             name: phpcs-report
             path: .
+          continue-on-error: true
         - name: Reviewdog for PHPCS
           run: |
             if [ -f phpcs-report.xml ]; then  
@@ -189,6 +191,7 @@ jobs:
           with:
             name: twigcs-report
             path: .
+          continue-on-error: true
         - name: Reviewdog for Twigcs
           run: |
             if [ -f twigcs-report.xml ]; then
