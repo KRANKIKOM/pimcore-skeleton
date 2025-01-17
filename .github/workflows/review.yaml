@@ -18,7 +18,7 @@ jobs:
         run: |
           HASH="${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}"
           echo "key=$HASH" >> $GITHUB_OUTPUT
-          echo "$HASH" vendor/cache.key
+          echo "$HASH" >vendor/cache.key
       - name: Cache Composer packages
         id: composer_cache
         uses: actions/cache@v3
