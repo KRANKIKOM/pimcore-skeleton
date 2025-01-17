@@ -148,12 +148,12 @@ jobs:
       # Fetch project source with GitHub Actions Checkout. Use either v3 or v4.
       - uses: actions/checkout@v4
       # Run the "semgrep scan" command on the command line of the docker image.
-      - run: semgrep scan --config auto --junit-xml-output=semgrep.junit.xml 
-      - name: Upload Semgrep artifact
+      - run: semgrep scan --config auto --sarif --output-file=semgrep.sarif 
+      - name: Upload Semgrep SARIF artifact
         uses: actions/upload-artifact@v3
         with:
           name: semgrep-report
-          path: semgrep.junit.xml
+          path: semgrep.sarif
       # Run semgrep with autofix and generate patch
       - name: Run Semgrep autofix
         run: |
@@ -381,15 +381,13 @@ jobs:
           continue-on-error: true
         - name: Reviewdog for Semgrep
           run: |
-            if [ -f semgrep.junit.xml ]; then
-              cat semgrep.junit.xml; \
-              cat semgrep.junit.xml \
-              | reviewdog \
-              -f=junit \
-              -reporter=github-pr-review \
-              -name="Semgrep Check"
+            if [ -f semgrep.sarif ]; then
+              cat semgrep.sarif | reviewdog \
+                -f=sarif \
+                -reporter=github-pr-review \
+                -name="Semgrep Check"
             else
-              echo "semgrep.junit.xml not found, skipping review"
+              echo "semgrep.sarif not found, skipping review"
             fi
           env:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
