@@ -39,7 +39,7 @@ jobs:
         dependencies:
           - "locked"
     steps:
-      - name: Check out code into the workspace
+      - name: Check out code
         uses: actions/checkout@v4
       - name: Restore composer cache
         uses: actions/cache@v3
@@ -52,13 +52,21 @@ jobs:
           coverage: "none"
           php-version: "${{ matrix.php_version }}"
       - name: Run Psalm
+        id: psalm_check
+        continue-on-error: true
         run: |
           vendor/bin/psalm --long-progress --no-cache --output-format=checkstyle > psalm-report.xml
+          echo "::set-output name=exit_code::$?"
       - name: Upload Psalm artifact
         uses: actions/upload-artifact@v3
         with:
           name: psalm-report
           path: psalm-report.xml
+      - name: Fail job if Psalm failed
+        if: steps.psalm_check.outputs.exit_code != '0'
+        run: |
+          echo "Psalm returned exit code ${{ steps.psalm_check.outputs.exit_code }}, failing job..."
+          exit 1
 
   phpcs:
     name: phpcs
