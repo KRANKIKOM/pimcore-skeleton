@@ -30,11 +30,29 @@ class Kernel extends PimcoreKernel
      *
      * @param BundleCollection $collection
      */
-    public function registerBundlesToCollection(BundleCollection $collection): void
-    {
+    public function registerBundlesToCollection(BundleCollection $collection): void {
         $collection->addBundle(new PimcoreAdminBundle(), 60);
         $collection->addBundle(new PimcoreJetpakkBundle(), 60);
         $collection->addBundle(new PimcoreTinymceBundle(), 60);
         $collection->addBundle(new PimcoreSimpleBackendSearchBundle(), 60);
+
+        $a = $this->getContainer()->get('pimcore.config');
+        echo $a->get('system');
+
+        $b = rand();
+        if ($b > 0.5) {
+            $c = null;
+        } else {
+            $c = new \stdClass();
+            $c->test = 'test';
+        }
+
+        $d = $c->test;
+        echo $d;
     }
 }
+
+
+
+
+
