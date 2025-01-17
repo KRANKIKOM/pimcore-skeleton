@@ -132,6 +132,7 @@ jobs:
         run: |
           echo "Psalm returned exit code ${{ steps.psalm_check.outputs.exit_code }}, failing job..."
           exit 1
+
   semgrep:
     name: Semgrep
     runs-on: ubuntu-24.04
@@ -147,7 +148,28 @@ jobs:
       # Fetch project source with GitHub Actions Checkout. Use either v3 or v4.
       - uses: actions/checkout@v4
       # Run the "semgrep scan" command on the command line of the docker image.
-      - run: semgrep scan --config auto
+      - run: semgrep scan --config auto --junit-xml-output=semgrep.junit.xml 
+      - name: Upload Semgrep artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: semgrep-report
+          path: semgrep.junit.xml
+      # Run semgrep with autofix and generate patch
+      - name: Run Semgrep autofix
+        run: |
+          # Store original content
+          cp -r . /tmp/original
+          # Run autofix
+          semgrep --autofix --config auto
+          # Create patch by comparing with original
+          diff -Naur /tmp/original . > semgrep-fixes.patch || true
+          cat semgrep-fixes.patch
+      - name: Upload Semgrep fixes
+        uses: actions/upload-artifact@v3
+        with:
+          name: semgrep-fixes
+          path: semgrep-fixes.patch
+        continue-on-error: true
 
   phpcs:
     name: phpcs
@@ -244,7 +266,7 @@ jobs:
         checks: write
         contents: read
         pull-requests: write
-    needs: [psalm, phpcs, twigcs]
+    needs: [psalm, phpcs, twigcs, semgrep]
     if: ${{ always() }}
     steps:
         - name: Check out code into the workspace
@@ -327,6 +349,8 @@ jobs:
           with:
               tool_name: phpcs
               github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
+
+              
         - name: Download Twigcs artifact
           uses: actions/download-artifact@v3
           with:
@@ -348,3 +372,26 @@ jobs:
           env:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           continue-on-error: true
+        
+        - name: Download Semgrep artifact
+          uses: actions/download-artifact@v3
+          with:
+            name: semgrep-report
+            path: .
+          continue-on-error: true
+        - name: Reviewdog for Semgrep
+          run: |
+            if [ -f semgrep.junit.xml ]; then
+              cat semgrep.junit.xml; \
+              cat semgrep.junit.xml \
+              | reviewdog \
+              -f=junit \
+              -reporter=github-pr-review \
+              -name="Semgrep Check"
+            else
+              echo "semgrep.junit.xml not found, skipping review"
+            fi
+          env:
+            REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          continue-on-error: true
+
