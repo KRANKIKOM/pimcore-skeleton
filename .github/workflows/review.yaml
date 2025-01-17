@@ -18,13 +18,14 @@ jobs:
         with:
           coverage: "none"
           php-version: "8.3"
-      - name: "Cache composer dependencies"
+      - name: Cache Composer dependencies
+        id: composer_cache
         uses: actions/cache@v3
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
-          restore-keys: ${{ runner.os }}-composer-
       - name: "Install locked dependencies from composer.lock"
+        if: steps.composer_cache.outputs.cache-hit != 'true'
         run: composer install --no-scripts --no-interaction --no-progress --no-suggest
 
   psalm:
@@ -45,7 +46,6 @@ jobs:
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
-          restore-keys: ${{ runner.os }}-composer-
       - name: "Install PHP with extensions"
         uses: "shivammathur/setup-php@v2"
         with:
@@ -78,7 +78,6 @@ jobs:
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
-          restore-keys: ${{ runner.os }}-composer-
       - name: "Install PHP with extensions"
         uses: "shivammathur/setup-php@v2"
         with:
@@ -111,7 +110,6 @@ jobs:
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
-          restore-keys: ${{ runner.os }}-composer-
       - name: "Install PHP with extensions"
         uses: "shivammathur/setup-php@v2"
         with:
