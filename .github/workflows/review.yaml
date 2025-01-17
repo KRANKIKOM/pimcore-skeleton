@@ -113,7 +113,10 @@ jobs:
             name: psalm-report
             path: .
         - name: Reviewdog for Psalm
-          run: cat psalm-report.xml | reviewdog \
+          run: |
+            cat psalm-report.xml; \
+            cat psalm-report.xml \
+            | reviewdog \
             -f=checkstyle \
             -reporter=github-pr-review \
             -name="Psalm Check"
