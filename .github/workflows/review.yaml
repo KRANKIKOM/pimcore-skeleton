@@ -13,53 +13,77 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v4
-      - name: Generate Cache Key
-        id: cache_key
-        run: |
-          HASH="${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}"
-          echo "key=$HASH" >> $GITHUB_OUTPUT          
-      - name: Cache Composer packages
-        id: composer_cache
-        uses: actions/cache@v3
-        with:
-          path: vendor
-          key: ${{ steps.cache_key.outputs.key }}
-          restore-keys: |
-            ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
-            ${{ runner.os }}-composer-
-
-      - name: Check Exact Cache Hit
-        id: cache_check
-        run: |
-          echo "cache-hit: ${{ steps.composer_cache.outputs.cache-hit }}"
-          echo "key: ${{ steps.cache_key.outputs.key }}"
-          cache_result_hash=""
+      #- name: Generate Cache Key
+      #  id: cache_key
+      #  run: |
+      #    HASH="${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}"
+      #    echo "key=$HASH" >> $GITHUB_OUTPUT      
           
-          if [ -f vendor/cache.key ]; then
-            echo "cache.key file exists - we did any sort of cache hit"
-            cache_result_hash=$(cat vendor/cache.key)
-          else
-            echo "cache.key does not exist"
-          fi
-          if [ "${{ steps.composer_cache.outputs.cache-hit }}" = "true" ] && \
-              [ "${{ steps.cache_key.outputs.key }}" = "$cache_result_hash" ]; then
-            echo "exact_hit=true" >> $GITHUB_OUTPUT
-            echo "EXACT HIT"
-          else
-            echo "exact_hit=false" >> $GITHUB_OUTPUT
-            echo "NO EXACT HIT"
-          fi
+      - uses: actions/cache/restore@v4
+        id: cache_restore
+        with:
+          path: path/to/dependencies
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+
+      - uses: actions/cache/restore@v4
+        id: cache_restore_fallbox
+        with:
+          path: path/to/dependencies
+          key: ${{ runner.os }}-composer-
+  
+            
+      #- name: Cache Composer packages
+      #  id: composer_cache
+      #  uses: actions/cache@v3
+      #  with:
+      #    path: vendor
+      #    key: ${{ steps.cache_key.outputs.key }}
+      #    restore-keys: |
+      #    ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+      #    ${{ runner.os }}-composer-
+
+      # - name: Check Exact Cache Hit
+      #   id: cache_check
+      #   run: |
+      #     echo "cache-hit: ${{ steps.composer_cache.outputs.cache-hit }}"
+      #     echo "key: ${{ steps.cache_key.outputs.key }}"
+      #     cache_result_hash=""
+          
+      #     if [ -f vendor/cache.key ]; then
+      #       echo "cache.key file exists - we did any sort of cache hit"
+      #       cache_result_hash=$(cat vendor/cache.key)
+      #     else
+      #       echo "cache.key does not exist"
+      #     fi
+      #     if [ "${{ steps.composer_cache.outputs.cache-hit }}" = "true" ] && \
+      #         [ "${{ steps.cache_key.outputs.key }}" = "$cache_result_hash" ]; then
+      #       echo "exact_hit=true" >> $GITHUB_OUTPUT
+      #       echo "EXACT HIT"
+      #     else
+      #       echo "exact_hit=false" >> $GITHUB_OUTPUT
+      #       echo "NO EXACT HIT"
+      #     fi
+
+
       - name: "Install PHP with extensions"
         uses: shivammathur/setup-php@v2
-        if: steps.cache_check.outputs.exact_hit != 'true'
+        if: steps.cache_restore.outputs.cache-hit != 'true'
         with:
           coverage: "none"
           php-version: "8.3"
+
       - name: "Composer install"
-        if: steps.cache_check.outputs.exact_hit != 'true'
+        if: steps.cache_restore.outputs.cache-hit != 'true'
         run: |          
           composer install --no-scripts --no-interaction --no-progress --no-suggest
           echo "$HASH" >vendor/cache.key
+      
+      - uses: actions/cache/save@v4
+        id: cache_save
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+      
   psalm:
     name: Psalm
     runs-on: ubuntu-24.04
@@ -74,7 +98,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
       - name: Restore composer cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
@@ -100,6 +124,22 @@ jobs:
         run: |
           echo "Psalm returned exit code ${{ steps.psalm_check.outputs.exit_code }}, failing job..."
           exit 1
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-24.04
+
+    container:
+      # A Docker image with Semgrep installed. Do not change this.
+      image: semgrep/semgrep
+
+    # Skip any PR created by dependabot to avoid permission issues:
+    if: (github.actor != 'dependabot[bot]')
+
+    steps:
+      # Fetch project source with GitHub Actions Checkout. Use either v3 or v4.
+      - uses: actions/checkout@v4
+      # Run the "semgrep scan" command on the command line of the docker image.
+      - run: semgrep scan --config auto
 
   phpcs:
     name: phpcs
@@ -115,7 +155,7 @@ jobs:
       - name: Check out code into the workspace
         uses: actions/checkout@v4
       - name: Restore composer cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
@@ -156,7 +196,7 @@ jobs:
       - name: Check out code into the workspace
         uses: actions/checkout@v4
       - name: Restore composer cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
