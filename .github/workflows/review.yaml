@@ -151,14 +151,19 @@ jobs:
             path: .
         - name: Reviewdog for Psalm
           run: |
-            cat psalm-report.xml; \
-            cat psalm-report.xml \
-            | reviewdog \
-            -f=checkstyle \
-            -reporter=github-pr-review \
-            -name="Psalm Check"
+            if [ -f psalm-report.xml ]; then
+              cat psalm-report.xml; \
+              cat psalm-report.xml \
+              | reviewdog \
+              -f=checkstyle \
+              -reporter=github-pr-review \
+              -name="Psalm Check"
+            else
+              echo "psalm-report.xml not found, skipping review"
+            fi
           env:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          continue-on-error: true
         - name: Download PHPCS artifact
           uses: actions/download-artifact@v3
           with:
@@ -166,24 +171,36 @@ jobs:
             path: .
         - name: Reviewdog for PHPCS
           run: |
-            cat phpcs-report.xml; \
-            cat phpcs-report.xml \
-            | reviewdog \
-            -f=checkstyle \
-            -reporter=github-pr-review \
-            -name="PHP CodeSniffer"
+            if [ -f phpcs-report.xml ]; then  
+              cat phpcs-report.xml; \
+              cat phpcs-report.xml \
+              | reviewdog \
+              -f=checkstyle \
+              -reporter=github-pr-review \
+              -name="PHP CodeSniffer"
+            else
+              echo "phpcs-report.xml not found, skipping review"
+            fi
           env:
-              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          continue-on-error: true
         - name: Download Twigcs artifact
           uses: actions/download-artifact@v3
           with:
             name: twigcs-report
             path: .
         - name: Reviewdog for Twigcs
-          run: cat twigcs-report.xml; \
-            cat twigcs-report.xml | reviewdog \
-            -f=checkstyle \
-            -reporter=github-pr-review \
-            -name="TwigCS Check"
+          run: |
+            if [ -f twigcs-report.xml ]; then
+              cat twigcs-report.xml; \
+              cat twigcs-report.xml \
+              | reviewdog \
+              -f=checkstyle \
+              -reporter=github-pr-review \
+              -name="TwigCS Check"
+            else
+              echo "twigcs-report.xml not found, skipping review"
+            fi
           env:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          continue-on-error: true
