@@ -160,14 +160,14 @@ jobs:
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SEMGREP_APP_TOKEN: af5144a2a3a7e50e548867b06e20d5c114b9f822625f1428a8ac15adacef191c
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
       - name: Run Semgrep scan & autofix
         run: |          
           semgrep ci
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SEMGREP_APP_TOKEN: af5144a2a3a7e50e548867b06e20d5c114b9f822625f1428a8ac15adacef191c
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
           SEMGREP_ENABLE_PR_COMMENTS: "1"
 
       # 4. Upload SARIF report so reviewdog can parse
