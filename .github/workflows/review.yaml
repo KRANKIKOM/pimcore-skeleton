@@ -22,14 +22,14 @@ jobs:
       - uses: actions/cache/restore@v4
         id: cache_restore
         with:
-          path: path/to/dependencies
+          path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
 
       - uses: actions/cache/restore@v4
         id: cache_restore_fallback
         if: steps.cache_restore.outputs.cache-hit != 'true'
         with:
-          path: path/to/dependencies
+          path: vendor
           key: ${{ runner.os }}-composer-
   
             
@@ -88,6 +88,7 @@ jobs:
       
       - uses: actions/cache/save@v4
         id: cache_save
+        if: steps.cache_restore.outputs.cache-hit != 'true'
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
@@ -106,7 +107,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
       - name: Restore composer cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
@@ -132,10 +133,10 @@ jobs:
         run: |
           echo "Psalm returned exit code ${{ steps.psalm_check.outputs.exit_code }}, failing job..."
           exit 1
+
   semgrep:
     name: Semgrep
     runs-on: ubuntu-24.04
-
     container:
       # A Docker image with Semgrep installed. Do not change this.
       image: semgrep/semgrep
@@ -144,10 +145,30 @@ jobs:
     if: (github.actor != 'dependabot[bot]')
 
     steps:
-      # Fetch project source with GitHub Actions Checkout. Use either v3 or v4.
+      # Fetch project source with GitHub Actions Checkout.
       - uses: actions/checkout@v4
-      # Run the "semgrep scan" command on the command line of the docker image.
-      - run: semgrep scan --config auto
+
+      # 1. Copy the original source
+      - name: Backup original source
+        run: cp -r . /tmp/original
+
+      # 2. Run Semgrep, generating a SARIF file and also autofixing
+      - name: Run Semgrep scan & autofix
+        run: |          
+          semgrep scan --config auto --sarif --autofix > semgrep.sarif
+          cat semgrep.sarif
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+      # 3. Upload SARIF report so reviewdog can parse
+      - name: Upload Semgrep SARIF artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: semgrep-report
+          path: semgrep.sarif
+        continue-on-error: true
+
 
   phpcs:
     name: phpcs
@@ -163,7 +184,7 @@ jobs:
       - name: Check out code into the workspace
         uses: actions/checkout@v4
       - name: Restore composer cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
@@ -204,7 +225,7 @@ jobs:
       - name: Check out code into the workspace
         uses: actions/checkout@v4
       - name: Restore composer cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
@@ -244,7 +265,7 @@ jobs:
         checks: write
         contents: read
         pull-requests: write
-    needs: [psalm, phpcs, twigcs]
+    needs: [psalm, phpcs, twigcs, semgrep]
     if: ${{ always() }}
     steps:
         - name: Check out code into the workspace
@@ -286,7 +307,7 @@ jobs:
         - name: Psalm Fix Suggestions - Add to PR
           uses: reviewdog/action-suggester@v1
           with:
-            tool_name: Psalm Fix Suggestions
+            tool_name: psalm
             github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
 
 
@@ -325,8 +346,10 @@ jobs:
         - name: PHPCS Fix Suggestions - Add to PR
           uses: reviewdog/action-suggester@v1
           with:
-              tool_name: PHPCCS Fix Suggestions
+              tool_name: phpcs
               github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
+
+              
         - name: Download Twigcs artifact
           uses: actions/download-artifact@v3
           with:
@@ -348,3 +371,23 @@ jobs:
           env:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           continue-on-error: true
+        
+        - name: Download Semgrep artifact
+          uses: actions/download-artifact@v3
+          with:
+            name: semgrep-report
+            path: .
+          continue-on-error: true
+        - name: Reviewdog for Semgrep
+          run: |
+            if [ -f semgrep.sarif ]; then
+              cat semgrep.sarif | reviewdog \
+                -f=sarif \
+                -reporter=github-pr-review \
+                -name="Semgrep Check"
+            else
+              echo "semgrep.sarif not found, skipping review"
+            fi
+          env:
+            REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            continue-on-error: true
