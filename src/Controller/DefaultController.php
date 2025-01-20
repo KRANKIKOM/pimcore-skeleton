@@ -14,7 +14,7 @@ class DefaultController extends FrontendController
      */
     public function defaultAction(): Response
     {
-        return $this->render('default/default.html.twig');        
+        return $this->render('default/default.html.twig');
     }
 
     /**
