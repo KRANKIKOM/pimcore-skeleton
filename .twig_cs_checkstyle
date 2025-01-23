@@ -1,5 +1,0 @@
-<?php
-include(".twig_cs_shared");
-
-return $config->setReporter('checkstyle');
-
