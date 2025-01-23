@@ -126,7 +126,9 @@ jobs:
       #  # against the sigstore community Fulcio instance.
       #  run: cosign sign ${{ steps.meta.outputs.tags }}@${{ steps.build-and-push.outputs.digest }}
   build-apache:
-
+    needs: check_repository
+    if: needs.check_repository.outputs.should_run == 'true'
+    
     runs-on: ubuntu-latest
     permissions:
       contents: read

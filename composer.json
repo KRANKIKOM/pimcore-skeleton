@@ -21,7 +21,7 @@
     "symfony/runtime": "^6.2"
   },
   "require-dev": {
-    "friendsoftwig/twigcs": "^6.0",
+    "vincentlanglet/twig-cs-fixer": "^3.5",
     "squizlabs/php_codesniffer": "^3.0",
     "vimeo/psalm": "^5.0",
     "codeception/codeception": "^5.0.3",
