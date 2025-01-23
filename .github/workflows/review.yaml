@@ -97,6 +97,10 @@ jobs:
     name: Psalm
     runs-on: ubuntu-24.04
     needs: [composer-cache]
+    permissions:
+        checks: write
+        contents: read
+        pull-requests: write
     strategy:
       matrix:
         php_version:
@@ -123,8 +127,13 @@ jobs:
           vendor/bin/psalm --long-progress --no-cache --output-format=checkstyle > psalm-report.xml
           psalm_exit_code=$?
           echo "::set-output name=exit_code::$psalm_exit_code"
+      - name: Publish Test Report
+        uses: jwgmeligmeyling/checkstyle-github-action@v1.2      
+        with:
+          path: psalm-report.xml
+          name: Checkstyle Psalm
       - name: Upload Psalm artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: psalm-report
           path: psalm-report.xml
@@ -137,43 +146,76 @@ jobs:
   semgrep:
     name: Semgrep
     runs-on: ubuntu-24.04
+    permissions:
+        checks: write
+        contents: read
+        pull-requests: write
+        security-events: write
     container:
-      # A Docker image with Semgrep installed. Do not change this.
       image: semgrep/semgrep
 
-    # Skip any PR created by dependabot to avoid permission issues:
     if: (github.actor != 'dependabot[bot]')
 
     steps:
-      # Fetch project source with GitHub Actions Checkout.
+      - name: Fix git ownership issue
+        run: git config --global --add safe.directory '*'
+
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # 1. Copy the original source
-      - name: Backup original source
-        run: cp -r . /tmp/original
-
-      # 2. Run Semgrep, generating a SARIF file and also autofixing
-      - name: Run Semgrep scan & autofix
+      - name: Run Semgrep scan
         run: |          
-          semgrep scan --config auto --sarif --autofix > semgrep.sarif
-          cat semgrep.sarif
+          # Fetch the repository history
+          set +e
+          export GIT_TRACE=1
+          git fetch origin master || true          
+
+          # Use the parent commit of the PR as baseline
+          BASELINE_COMMIT=$(git rev-parse origin/master)
+          echo "Using baseline commit: $BASELINE_COMMIT"
+          
+          semgrep scan --config auto --sarif --autofix --baseline-commit "$BASELINE_COMMIT" > semgrep.sarif
+          echo ""
+          echo "Semgrep scan completed"
+          echo ""
+          echo ""
+          if [ -f semgrep.sarif ]; then
+            echo "----------------------------------------"
+            echo "Semgrep SARIF file:"  
+            cat semgrep.sarif
+          else
+            echo "Semgrep SARIF file not found"
+          fi
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-      # 3. Upload SARIF report so reviewdog can parse
+
       - name: Upload Semgrep SARIF artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: semgrep-report
           path: semgrep.sarif
         continue-on-error: true
+
+      - name: Check number of issues
+        run: |
+          count=$(jq '[.runs[].results[]] | length' semgrep.sarif)
+          echo "Found $count issues"
+          if [ "$count" -gt 0 ]; then
+            exit 1
+          fi
 
 
   phpcs:
     name: phpcs
     runs-on: ubuntu-24.04
     needs: [composer-cache]
+    permissions:
+        checks: write
+        contents: read
+        pull-requests: write
     strategy:
       matrix:
         php_version:
@@ -201,10 +243,15 @@ jobs:
           phpcs_exit_code=$?
           echo "::set-output name=exit_code::$phpcs_exit_code"
       - name: Upload PHPCS artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: phpcs-report
           path: phpcs-report.xml
+      - name: Publish Test Report
+        uses: jwgmeligmeyling/checkstyle-github-action@v1.2      
+        with:
+          path: phpcs-report.xml
+          name: Checkstyle PHP CodeSniffer
       - name: Fail job if PHPCS failed
         if: steps.phpcs_check.outputs.exit_code != '0'
         run: |
@@ -215,6 +262,10 @@ jobs:
     name: twigcs
     runs-on: ubuntu-24.04
     needs: [composer-cache]
+    permissions:
+        checks: write
+        contents: read
+        pull-requests: write
     strategy:
       matrix:
         php_version:
@@ -238,21 +289,32 @@ jobs:
         id: twigcs_check
         run: |
           set +e
-          vendor/bin/twigcs --reporter checkstyle > twigcs-report.xml
+          if [ -f vendor/bin/twig-cs-fixer ]; then          
+            echo "Using twig-cs-fixer"
+            vendor/bin/twig-cs-fixer lint -r checkstyle >twigcs-report.xml
+          else
+            echo "Using twigcs"
+            vendor/bin/twigcs --reporter checkstyle > twigcs-report.xml
+          fi
           twigcs_exit_code=$?
           echo "::set-output name=exit_code::$twigcs_exit_code"
       - name: Upload Twigcs artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: twigcs-report
           path: twigcs-report.xml
+      - name: Publish Test Report
+        uses: jwgmeligmeyling/checkstyle-github-action@v1.2      
+        with:
+          path: twigcs-report.xml
+          name: Checkstyle TwigCS
       - name: Fail job if Twigcs failed
         if: steps.twigcs_check.outputs.exit_code != '0'
         run: |
           echo "Twigcs returned exit code ${{ steps.twigcs_check.outputs.exit_code }}, failing job..."
           exit 1
 
-  reviewdog:
+  reviewdog:    
     name: Reviewdog
     runs-on: ubuntu-24.04
     strategy:
@@ -273,9 +335,15 @@ jobs:
         - name: Setup reviewdog
           uses: reviewdog/action-setup@v1
         
-      
+        - name: Restore composer cache
+          uses: actions/cache/restore@v4
+          with:
+            path: vendor
+            key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+
+          
         - name: Download Psalm artifact
-          uses: actions/download-artifact@v3
+          uses: actions/download-artifact@v4
           with:
             name: psalm-report
             path: .
@@ -308,12 +376,11 @@ jobs:
           uses: reviewdog/action-suggester@v1
           with:
             tool_name: psalm
-            github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
-
+            github_token: ${{ secrets.GITHUB_TOKEN }}
 
 
         - name: Download PHPCS artifact
-          uses: actions/download-artifact@v3
+          uses: actions/download-artifact@v4
           with:
             name: phpcs-report
             path: .
@@ -347,11 +414,11 @@ jobs:
           uses: reviewdog/action-suggester@v1
           with:
               tool_name: phpcs
-              github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
+              github_token: ${{ secrets.GITHUB_TOKEN }}
 
               
         - name: Download Twigcs artifact
-          uses: actions/download-artifact@v3
+          uses: actions/download-artifact@v4
           with:
             name: twigcs-report
             path: .
@@ -371,9 +438,28 @@ jobs:
           env:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           continue-on-error: true
+
         
+        - name: Run twigcs fixer for automatic fixes
+          run: |
+            if [ -f vendor/bin/twig-cs-fixer ]; then
+              echo "Using twig-cs-fixer"
+              vendor/bin/twig-cs-fixer lint --fix
+            else
+              echo "twigcs-fixer not found, skipping automatic fixes"
+            fi
+          continue-on-error: true
+        
+        - name: Twigcs Fix Suggestions - Add to PR
+          uses: reviewdog/action-suggester@v1
+          with:
+              tool_name: twigcs
+              github_token: ${{ secrets.GITHUB_TOKEN }}
+        
+        
+
         - name: Download Semgrep artifact
-          uses: actions/download-artifact@v3
+          uses: actions/download-artifact@v4
           with:
             name: semgrep-report
             path: .
