@@ -91,23 +91,20 @@ jobs:
           key: ${{ runner.os }}-${{ steps.system-info.outputs.release }}-vendor-${{ hashFiles('**/composer.lock') }}
 
       - name: run devsetup composer install
-        # if: steps.cache-vendor.outputs.cache-hit != 'true' # Skip if cache hit
+        # if: steps.cache-vendor.outputs.cache-hit != 'true'
         run: |
-          ls -la
-          test -d vendor && ls -la vendor/
-          if [ -d vendor/krankikom ]; then
-            echo "vendor/krankikom exists, skipping composer install"
-          else
+          if [ -z "${{ steps.cache-vendor.outputs.cache-hit }}" ]; then
             ./devsetup-composer-install.sh
+          else
+            echo "Using cached composer files"
           fi
 
       - name: Set NAMESPACE_PREFIX if not already set
         run: |
           if [[ -z "${NAMESPACE_PREFIX}" ]]; then
-            # NAMESPACE_PREFIX is not set, compute and set it
-            PREFIX=$(echo "${GITHUB_REPOSITORY}" | cut -d '/' -f 2 | cut -d '-' -f 1)
-            echo "Setting NAMESPACE_PREFIX to $PREFIX"
-            echo "NAMESPACE_PREFIX=$PREFIX" >> "$GITHUB_ENV"
+            # NAMESPACE_PREFIX is not set, use repository name
+            echo "Setting NAMESPACE_PREFIX to ${{ github.event.repository.name }}"
+            echo "NAMESPACE_PREFIX=${{ github.event.repository.name }}" >> "$GITHUB_ENV"
           else
             # NAMESPACE_PREFIX is already set, use the existing value
             echo "Using existing NAMESPACE_PREFIX: ${NAMESPACE_PREFIX}"
@@ -120,14 +117,15 @@ jobs:
           touch $HOME/kubeconfig
           kubectl config set-cluster default --server=${KUBERNETES_URL}
           kubectl config set-credentials github-actions-sa --token=${KUBERNETES_TOKEN}
-          kubectl config set-context default --user=github-actions-sa --cluster=default --namespace=${NAMESPACE}
+          kubectl config set-context default --user=github-actions-sa --cluster=default --namespace=${NAMESPACE_PREFIX}-${ENVIRONMENT}
           kubectl config use-context default
           echo "Testing KUBECONFIG"
-          kubectl version || echo "ERROR: Somethings wrong with your VAR / Secret variables, env-secret KUBERNETES_TOKEN and repo-variable KUBERNETES_URL is set."
+          kubectl version || echo "ERROR: Somethings wrong with your VAR / Secret variables, env-secret KUBERNETES_TOKEN and repo-variable KUBERNETES_URL is set."
           echo "KUBECONFIG=$HOME/kubeconfig" >> "$GITHUB_ENV"
         env:
           KUBERNETES_TOKEN: ${{ secrets.KUBERNETES_TOKEN }}
           KUBERNETES_URL: ${{ vars.KUBERNETES_URL }}
+          ENVIRONMENT: ${{ inputs.environment }}
 
       - name: Create docker config for ImagePullSecret
         run: |
@@ -142,6 +140,20 @@ jobs:
           fi
         env:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Set htaccess if needed
+        run: |
+          echo "Check if htaccess needs to be set"
+          if [[ -d "./kubernetes/secrets" ]]; then
+            if [ ! -z "$HTPASSWD_AUTH" ]; then
+              echo "Setting Basic Auth for nginx"
+              cd ./kubernetes/secrets
+              kustomize edit add secret basic-auth --from-literal=auth=$HTPASSWD_AUTH
+              cd ../..
+            fi
+          fi
+        env:
+          HTPASSWD_AUTH: ${{ secrets.HTPASSWD_AUTH }}
 
       - name: Kustomize and kubectl apply
         run: |
@@ -188,9 +200,7 @@ jobs:
             cd ..
           fi
         env:
-          ENVIRONMENT: ${{ inputs.environment }}
           FULL_IMAGENAME_LOWER: ${{ steps.lowercase-fully-qualified-image-name.outputs.lowercase }}
           IMAGELABEL: ${{ inputs.imagelabel }}
           PIMCORE_INSTALL: ${{ inputs.pimcore_install }}
-          KUBECFGSECRET: ${{ secrets.KUBECONFIG }}
-          DOCKERJSON: ${{ secrets.DOCKERJSON }}
+          ENVIRONMENT: ${{ inputs.environment }}

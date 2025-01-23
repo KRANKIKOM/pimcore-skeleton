@@ -1,9 +1,16 @@
-# Skip this workflow for pimcore-skeleton repository
 name: Docker
 
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
 on:
+  #schedule:
+  #  - cron: '15 11 * * *'
   push:
     branches: [ "master", "main" ]
+    # Publish semver tags as releases.
     tags: [ 'env-*' ]
   pull_request:
     branches: [ "*" ]
@@ -13,8 +20,10 @@ env:
   REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
   IMAGE_NAME: ${{ github.repository }}
-  
+
+
 jobs:
+
   check_repository:
     runs-on: ubuntu-latest
     outputs:
@@ -32,10 +41,13 @@ jobs:
   build:
     needs: check_repository
     if: needs.check_repository.outputs.should_run == 'true'
+  
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
       id-token: write
 
     steps:
@@ -59,13 +71,18 @@ jobs:
         with:
           install: true      
 
+      # Login against a Docker registry except on PR
+      # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
+        #if: github.event_name != 'pull_request'
         uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Extract metadata (tags, labels) for Docker
+      # https://github.com/docker/metadata-action
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
@@ -81,25 +98,54 @@ jobs:
         with:
           string: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
+      # Build and push Docker image with Buildx (don't push on PR)
+      # https://github.com/docker/build-push-action
       - name: Build and push Docker image
         id: build-and-push
         uses: docker/build-push-action@1527803881d0d3d1073ef4278b1168264ce2f779
         with:
           context: .
+          #push: ${{ github.event_name != 'pull_request' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}  
           cache-from: type=registry,ref=${{ steps.lowercase-fully-qualified-image-name.outputs.lowercase }}:buildcache
           cache-to: type=registry,ref=${{ steps.lowercase-fully-qualified-image-name.outputs.lowercase }}:buildcache,mode=max
 
+
+      # Sign the resulting Docker image digest except on PRs.
+      # This will only write to the public Rekor transparency log when the Docker
+      # repository is public to avoid leaking data.  If you would like to publish
+      # transparency data even for private images, pass --force to cosign below.
+      # https://github.com/sigstore/cosign
+      #- name: Sign the published Docker image
+      #  if: ${{ github.event_name != 'pull_request' }}
+      #  env:
+      #    COSIGN_EXPERIMENTAL: "true"
+      #  # This step uses the identity token to provision an ephemeral certificate
+      #  # against the sigstore community Fulcio instance.
+      #  run: cosign sign ${{ steps.meta.outputs.tags }}@${{ steps.build-and-push.outputs.digest }}
   build-apache:
-    needs: check_repository
-    if: needs.check_repository.outputs.should_run == 'true'
+
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
       id-token: write
+    
+    #services:
+    #  mariadb:
+    #    image: mariadb:10.5.17
+    #    ports:
+    #      - 3306
+    #    env:
+    #      MYSQL_USER: pimcore
+    #      MYSQL_PASSWORD: pimcore
+    #      MYSQL_DATABASE: pimcore
+    #      MYSQL_ROOT_PASSWORD: pimcore1
+    #    options: --health-cmd="mysqladmin ping" --health-interval=5s --health-timeout=2s --health-retries=3
 
     steps:
       - name: Checkout repository
@@ -114,18 +160,24 @@ jobs:
         run: |          
           ./devsetup-composer-install.sh
 
+      # Workaround: https://github.com/docker/build-push-action/issues/461
       - name: Setup Docker buildx
         uses: docker/setup-buildx-action@312f67c6629946ba17269558b63d0bd84a63caab
         with:
           install: true      
 
+      # Login against a Docker registry except on PR
+      # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
+        #if: github.event_name != 'pull_request'
         uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Extract metadata (tags, labels) for Docker
+      # https://github.com/docker/metadata-action
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
@@ -140,15 +192,29 @@ jobs:
         with:
           string: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-apache
 
+      #- name: Verify MariaDB connection
+      #  env:
+      #    PORT: ${{ job.services.mariadb.ports['3306'] }}
+      #  run: |
+      #    while ! mysqladmin ping -h"127.0.0.1" -P"$PORT" --silent; do
+      #      echo "Waiting for mariadb"
+      #      sleep 1
+      #    done         
+
+      # Build and push Docker image with Buildx (don't push on PR)
+      # https://github.com/docker/build-push-action
       - name: Build and push Docker image
         id: build-and-push
         uses: docker/build-push-action@1527803881d0d3d1073ef4278b1168264ce2f779
         with:
           context: .
           file: Dockerfile.apache
+          #push: ${{ github.event_name != 'pull_request' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}  
           build-args: 
             MYSQL_HOST=127.0.0.1
             MYSQL_PORT=${{ job.services.mariadb.ports['3306'] }}
+          #cache-from: type=registry,ref=${{ steps.lowercase-fully-qualified-image-name.outputs.lowercase }}:buildcache
+          #cache-to: type=registry,ref=${{ steps.lowercase-fully-qualified-image-name.outputs.lowercase }}:buildcache,mode=max
