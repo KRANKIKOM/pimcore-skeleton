@@ -7,9 +7,215 @@ env:
   COMPOSER_AUTH: "{\"http-basic\": {\"repo.packagist.com\": {\"username\": \"krankikom\", \"password\": \"c8a7ecca281bc7a6682a01fc5cb406a73aabf86ed5ffa81285049e650b41\"}}}"
 
 jobs:
+  composer-cache:
+    name: Composer cache
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      #- name: Generate Cache Key
+      #  id: cache_key
+      #  run: |
+      #    HASH="${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}"
+      #    echo "key=$HASH" >> $GITHUB_OUTPUT      
+          
+      - uses: actions/cache/restore@v4
+        id: cache_restore
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+
+      - uses: actions/cache/restore@v4
+        id: cache_restore_fallback
+        if: steps.cache_restore.outputs.cache-hit != 'true'
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-
+  
+            
+      #- name: Cache Composer packages
+      #  id: composer_cache
+      #  uses: actions/cache@v3
+      #  with:
+      #    path: vendor
+      #    key: ${{ steps.cache_key.outputs.key }}
+      #    restore-keys: |
+      #    ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+      #    ${{ runner.os }}-composer-
+
+      # - name: Check Exact Cache Hit
+      #   id: cache_check
+      #   run: |
+      #     echo "cache-hit: ${{ steps.composer_cache.outputs.cache-hit }}"
+      #     echo "key: ${{ steps.cache_key.outputs.key }}"
+      #     cache_result_hash=""
+          
+      #     if [ -f vendor/cache.key ]; then
+      #       echo "cache.key file exists - we did any sort of cache hit"
+      #       cache_result_hash=$(cat vendor/cache.key)
+      #     else
+      #       echo "cache.key does not exist"
+      #     fi
+      #     if [ "${{ steps.composer_cache.outputs.cache-hit }}" = "true" ] && \
+      #         [ "${{ steps.cache_key.outputs.key }}" = "$cache_result_hash" ]; then
+      #       echo "exact_hit=true" >> $GITHUB_OUTPUT
+      #       echo "EXACT HIT"
+      #     else
+      #       echo "exact_hit=false" >> $GITHUB_OUTPUT
+      #       echo "NO EXACT HIT"
+      #     fi
+
+
+      - name: "Install PHP with extensions"
+        uses: shivammathur/setup-php@v2
+        if: steps.cache_restore.outputs.cache-hit != 'true'
+        with:
+          coverage: "none"
+          php-version: "8.3"
+
+      - name: "Composer install"
+        if: steps.cache_restore.outputs.cache-hit != 'true'
+        run: |          
+          KEEP_LOCKFILE=false
+          if [ -f composer.lock ]; then
+            KEEP_LOCKFILE=true
+          fi
+          composer install --no-scripts --no-interaction --no-progress --no-suggest
+          if [ "$KEEP_LOCKFILE" = "false" ]; then
+            rm -f composer.lock
+          fi
+          echo "$HASH" >vendor/cache.key
+      
+      - uses: actions/cache/save@v4
+        id: cache_save
+        if: steps.cache_restore.outputs.cache-hit != 'true'
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+      
   psalm:
     name: Psalm
     runs-on: ubuntu-24.04
+    needs: [composer-cache]
+    permissions:
+        checks: write
+        contents: read
+        pull-requests: write
+    strategy:
+      matrix:
+        php_version:
+          - "8.3"
+        dependencies:
+          - "locked"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Restore composer cache
+        uses: actions/cache/restore@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+      - name: "Install PHP with extensions"
+        uses: "shivammathur/setup-php@v2"
+        with:
+          coverage: "none"
+          php-version: "${{ matrix.php_version }}"
+      - name: Run Psalm
+        id: psalm_check
+        run: |
+          set +e
+          vendor/bin/psalm --long-progress --no-cache --output-format=checkstyle > psalm-report.xml
+          psalm_exit_code=$?
+          echo "::set-output name=exit_code::$psalm_exit_code"
+      - name: Publish Test Report
+        uses: jwgmeligmeyling/checkstyle-github-action@v1.2      
+        with:
+          path: psalm-report.xml
+          name: Checkstyle Psalm
+      - name: Upload Psalm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psalm-report
+          path: psalm-report.xml
+      - name: Fail job if Psalm failed
+        if: steps.psalm_check.outputs.exit_code != '0'
+        run: |
+          echo "Psalm returned exit code ${{ steps.psalm_check.outputs.exit_code }}, failing job..."
+          exit 1
+
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-24.04
+    permissions:
+        checks: write
+        contents: read
+        pull-requests: write
+        security-events: write
+    container:
+      image: semgrep/semgrep
+
+    if: (github.actor != 'dependabot[bot]')
+
+    steps:
+      - name: Fix git ownership issue
+        run: git config --global --add safe.directory '*'
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Semgrep scan
+        run: |          
+          # Fetch the repository history
+          set +e
+          export GIT_TRACE=1
+          git fetch origin master || true          
+
+          # Use the parent commit of the PR as baseline
+          BASELINE_COMMIT=$(git rev-parse origin/master)
+          echo "Using baseline commit: $BASELINE_COMMIT"
+          
+          semgrep scan --config auto --sarif --autofix --baseline-commit "$BASELINE_COMMIT" > semgrep.sarif
+          echo ""
+          echo "Semgrep scan completed"
+          echo ""
+          echo ""
+          if [ -f semgrep.sarif ]; then
+            echo "----------------------------------------"
+            echo "Semgrep SARIF file:"  
+            cat semgrep.sarif
+          else
+            echo "Semgrep SARIF file not found"
+          fi
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload Semgrep SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: semgrep.sarif
+        continue-on-error: true
+
+      - name: Check number of issues
+        run: |
+          count=$(jq '[.runs[].results[]] | length' semgrep.sarif)
+          echo "Found $count issues"
+          if [ "$count" -gt 0 ]; then
+            exit 1
+          fi
+
+
+  phpcs:
+    name: phpcs
+    runs-on: ubuntu-24.04
+    needs: [composer-cache]
+    permissions:
+        checks: write
+        contents: read
+        pull-requests: write
     strategy:
       matrix:
         php_version:
@@ -19,58 +225,96 @@ jobs:
     steps:
       - name: Check out code into the workspace
         uses: actions/checkout@v4
+      - name: Restore composer cache
+        uses: actions/cache/restore@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
       - name: "Install PHP with extensions"
         uses: "shivammathur/setup-php@v2"
         with:
           coverage: "none"
           php-version: "${{ matrix.php_version }}"
-      - name: "Install locked dependencies from composer.lock"
-        run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
-      - name: Psalm
-        run: "vendor/bin/psalm --long-progress --no-cache"
-  phpcs:
-      name: phpcs
-      runs-on: ubuntu-24.04
-      strategy:
-          matrix:
-              php_version:
-                  - "8.3"
-              dependencies:
-                  - "locked"
-      steps:
-          - name: Check out code into the workspace
-            uses: actions/checkout@v4
-          - name: "Install PHP with extensions"
-            uses: "shivammathur/setup-php@v2"
-            with:
-                coverage: "none"
-                php-version: "${{ matrix.php_version }}"
-          - name: "Install locked dependencies from composer.lock"
-            run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
-          - name: Phpcs
-            run: "vendor/bin/phpcs --standard=phpcs-ruleset.xml"
+      - name: Run phpcs
+        id: phpcs_check
+        run: |
+          set +e
+          vendor/bin/phpcs --standard=phpcs-ruleset.xml --report=checkstyle > phpcs-report.xml
+          phpcs_exit_code=$?
+          echo "::set-output name=exit_code::$phpcs_exit_code"
+      - name: Upload PHPCS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: phpcs-report
+          path: phpcs-report.xml
+      - name: Publish Test Report
+        uses: jwgmeligmeyling/checkstyle-github-action@v1.2      
+        with:
+          path: phpcs-report.xml
+          name: Checkstyle PHP CodeSniffer
+      - name: Fail job if PHPCS failed
+        if: steps.phpcs_check.outputs.exit_code != '0'
+        run: |
+          echo "PHPCS returned exit code ${{ steps.phpcs_check.outputs.exit_code }}, failing job..."
+          exit 1
+
   twigcs:
-      name: twigcs
-      runs-on: ubuntu-24.04
-      strategy:
-          matrix:
-              php_version:
-                  - "8.3"
-              dependencies:
-                  - "locked"
-      steps:
-          - name: Check out code into the workspace
-            uses: actions/checkout@v4
-          - name: "Install PHP with extensions"
-            uses: "shivammathur/setup-php@v2"
-            with:
-                coverage: "none"
-                php-version: "${{ matrix.php_version }}"
-          - name: "Install locked dependencies from composer.lock"
-            run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
-          - name: Twigcs
-            run: "vendor/bin/twigcs"
-  reviewdog:
+    name: twigcs
+    runs-on: ubuntu-24.04
+    needs: [composer-cache]
+    permissions:
+        checks: write
+        contents: read
+        pull-requests: write
+    strategy:
+      matrix:
+        php_version:
+          - "8.3"
+        dependencies:
+          - "locked"
+    steps:
+      - name: Check out code into the workspace
+        uses: actions/checkout@v4
+      - name: Restore composer cache
+        uses: actions/cache/restore@v4
+        with:
+          path: vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+      - name: "Install PHP with extensions"
+        uses: "shivammathur/setup-php@v2"
+        with:
+          coverage: "none"
+          php-version: "${{ matrix.php_version }}"
+      - name: Run Twigcs
+        id: twigcs_check
+        run: |
+          set +e
+          if [ -f vendor/bin/twig-cs-fixer ]; then          
+            echo "Using twig-cs-fixer"
+            vendor/bin/twig-cs-fixer lint -r checkstyle >twigcs-report.xml
+          else
+            echo "Using twigcs"
+            vendor/bin/twigcs --reporter checkstyle > twigcs-report.xml
+          fi
+          twigcs_exit_code=$?
+          echo "::set-output name=exit_code::$twigcs_exit_code"
+      - name: Upload Twigcs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: twigcs-report
+          path: twigcs-report.xml
+      - name: Publish Test Report
+        uses: jwgmeligmeyling/checkstyle-github-action@v1.2      
+        with:
+          path: twigcs-report.xml
+          name: Checkstyle TwigCS
+      - name: Fail job if Twigcs failed
+        if: steps.twigcs_check.outputs.exit_code != '0'
+        run: |
+          echo "Twigcs returned exit code ${{ steps.twigcs_check.outputs.exit_code }}, failing job..."
+          exit 1
+
+  reviewdog:    
     name: Reviewdog
     runs-on: ubuntu-24.04
     strategy:
@@ -83,52 +327,153 @@ jobs:
         checks: write
         contents: read
         pull-requests: write
+    needs: [psalm, phpcs, twigcs, semgrep]
+    if: ${{ always() }}
     steps:
         - name: Check out code into the workspace
           uses: actions/checkout@v4
         - name: Setup reviewdog
           uses: reviewdog/action-setup@v1
-        - name: "Install PHP with extensions"
-          uses: "shivammathur/setup-php@v2"
+        
+        - name: Restore composer cache
+          uses: actions/cache/restore@v4
           with:
-            coverage: "none"
-            php-version: "${{ matrix.php_version }}"
-        - name: "Install locked dependencies from composer.lock"
-          run: "composer install --no-scripts --no-interaction --no-progress --no-suggest"
-        - name: phpcs and reviewdog
-          env:
-              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: |
-              vendor/bin/phpcs --standard=phpcs-ruleset.xml --report=checkstyle | reviewdog -f=checkstyle -reporter=github-pr-review -name="PHP CodeSniffer" -filter-mode=nofilter
-        - name: phpcs-fixer
-          run: vendor/bin/phpcbf -n -v --extensions=php --standard=phpcs-ruleset.xml --ignore=src/Migrations/ src/
-          continue-on-error: true
-          env:
-              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        - name: suggester / PHPCS
-          uses: reviewdog/action-suggester@v1
+            path: vendor
+            key: ${{ runner.os }}-composer-${{ hashFiles('composer.lock') }}--${{ hashFiles('composer.json') }}
+
+          
+        - name: Download Psalm artifact
+          uses: actions/download-artifact@v4
           with:
-              tool_name: vendor/bin/phpcbf
-              github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
-        - name: psalm + reviewdog
-          env:
-              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          run: |
-            vendor/bin/psalm --output-format=checkstyle | reviewdog -f=checkstyle -reporter=github-pr-review -name="Psalm Check"
+            name: psalm-report
+            path: .
           continue-on-error: true
-        - name: psalter
+        - name: Reviewdog for Psalm
+          run: |
+            if [ -f psalm-report.xml ]; then
+              cat psalm-report.xml; \
+              cat psalm-report.xml \
+              | reviewdog \
+              -f=checkstyle \
+              -reporter=github-pr-review \
+              -name="Psalm Check"
+            else
+              echo "psalm-report.xml not found, skipping review"
+            fi
+          env:
+            REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          continue-on-error: true
+
+      
+        - name: Psalm Fix Suggestions
           env:
               REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           run: |
               psalm_command=`vendor/bin/psalm --no-cache --no-progress --monochrome | grep alter | sed 's/--dry-run//'`; vendor/bin/psalm $psalm_command
           continue-on-error: true
-        - name: suggester / Psalm
+
+        - name: Psalm Fix Suggestions - Add to PR
           uses: reviewdog/action-suggester@v1
           with:
-            tool_name: vendor/bin/psalm
-            github_token: ${{ secrets.REVIEW_DOG_TOKEN }}
-        - name: twigcs + reviewdog
+            tool_name: psalm
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+
+
+        - name: Download PHPCS artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: phpcs-report
+            path: .
+          continue-on-error: true
+        - name: Reviewdog for PHPCS
           run: |
-            vendor/bin/twigcs --reporter checkstyle | reviewdog -f=checkstyle -reporter=github-pr-review -name="TwigCS Check"
+            if [ -f phpcs-report.xml ]; then  
+              cat phpcs-report.xml; \
+              cat phpcs-report.xml \
+              | reviewdog \
+              -f=checkstyle \
+              -reporter=github-pr-review \
+              -name="PHP CodeSniffer"
+            else
+              echo "phpcs-report.xml not found, skipping review"
+            fi
           env:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          continue-on-error: true
+        - name: PHPCS Fix Suggestions
+          run: |
+            DIRS="src/"
+            if [ -d "bundles" ]; then
+              DIRS="$DIRS bundles/"
+            fi
+            vendor/bin/phpcbf -n -v --extensions=php --standard=phpcs-ruleset.xml --ignore=src/Migrations/ $DIRS
+          continue-on-error: true
+          env:
+              REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - name: PHPCS Fix Suggestions - Add to PR
+          uses: reviewdog/action-suggester@v1
+          with:
+              tool_name: phpcs
+              github_token: ${{ secrets.GITHUB_TOKEN }}
+
+              
+        - name: Download Twigcs artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: twigcs-report
+            path: .
+          continue-on-error: true
+        - name: Reviewdog for Twigcs
+          run: |
+            if [ -f twigcs-report.xml ]; then
+              cat twigcs-report.xml; \
+              cat twigcs-report.xml \
+              | reviewdog \
+              -f=checkstyle \
+              -reporter=github-pr-review \
+              -name="TwigCS Check"
+            else
+              echo "twigcs-report.xml not found, skipping review"
+            fi
+          env:
+            REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          continue-on-error: true
+
+        
+        - name: Run twigcs fixer for automatic fixes
+          run: |
+            if [ -f vendor/bin/twig-cs-fixer ]; then
+              echo "Using twig-cs-fixer"
+              vendor/bin/twig-cs-fixer lint --fix
+            else
+              echo "twigcs-fixer not found, skipping automatic fixes"
+            fi
+          continue-on-error: true
+        
+        - name: Twigcs Fix Suggestions - Add to PR
+          uses: reviewdog/action-suggester@v1
+          with:
+              tool_name: twigcs
+              github_token: ${{ secrets.GITHUB_TOKEN }}
+        
+        
+
+        - name: Download Semgrep artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: semgrep-report
+            path: .
+          continue-on-error: true
+        - name: Reviewdog for Semgrep
+          run: |
+            if [ -f semgrep.sarif ]; then
+              cat semgrep.sarif | reviewdog \
+                -f=sarif \
+                -reporter=github-pr-review \
+                -name="Semgrep Check"
+            else
+              echo "semgrep.sarif not found, skipping review"
+            fi
+          env:
+            REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            continue-on-error: true
