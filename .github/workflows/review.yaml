@@ -439,20 +439,6 @@ jobs:
             REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           continue-on-error: true
 
-
-        - name: Cache twigcs fixer
-          uses: actions/cache@v4
-          id: cache_twigcs_fixer
-          with:
-            path: twig-cs-fixer.phar
-            key: twig-cs-fixer.phar
-            restore-keys: |
-              twig-cs-fixer.phar
-
-        - name: Get twigcs fixer
-          if: steps.cache_twigcs_fixer.outputs.cache-hit != 'true'
-          run: |
-            wget -c https://github.com/VincentLanglet/Twig-CS-Fixer/releases/download/3.5.1/twig-cs-fixer.phar -o twig-cs-fixer.phar
         
         - name: Run twigcs fixer for automatic fixes
           run: |
