@@ -11,14 +11,6 @@ on:
         description: 'Environment'
         type: environment
         required: true
-      k8scontext:
-        description: 'Kubernetes Context'
-        required: true
-        default: 'm-k8s-dev'
-        type: choice
-        options:
-          - m-k8s-dev
-          - m-k8s-production
       pimcore_install:
         description: 'Run pimcore installation'
         required: false
@@ -31,7 +23,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
   # Pre-set NAMESPACE_PREFIX from a GitHub variable if available
   NAMESPACE_PREFIX: ${{ vars.NAMESPACE_PREFIX }}
-  
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -46,17 +38,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-    
+
       - uses: kenchan0130/actions-system-info@master
         id: system-info
-    
+
       - name: Cache kubectl
         id: cache-kubectl
         uses: actions/cache@v3
         with:
           path: /usr/local/bin/kubectl
           key: ${{ runner.os }}-${{ steps.system-info.outputs.release }}-kubectl
-      
+
       - name: Install kubectl
         run: |
           if [ -z "${{ steps.cache-kubectl.outputs.cache-hit }}" ]; then
@@ -67,14 +59,13 @@ jobs:
             echo "Using cached kubectl"
           fi
 
-
       - name: Cache kubeval
         id: cache-kubeval
         uses: actions/cache@v3
         with:
           path: /usr/local/bin/kubeval
           key: ${{ runner.os }}-${{ steps.system-info.outputs.release }}-kubeval
-          
+
       - name: Install kubeval
         run: |
           if [ -z "${{ steps.cache-kubeval.outputs.cache-hit }}" ]; then
@@ -85,44 +76,87 @@ jobs:
           else
             echo "Using cached kubeval"
           fi
-          
+
       - id: lowercase-fully-qualified-image-name
         name: Lowercase fully qualified image name
         uses: ASzc/change-string-case-action@v2
         with:
           string: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-     
 
       - name: Cache vendor directory
+        id: cache-vendor
         uses: actions/cache@v3
         with:
           path: vendor
-          key: ${{ runner.os }}-${{ steps.system-info.outputs.release }}-vendor-${{ hashFiles('composer.lock') }}
-      - name: run devsetup composer install
-        run: |
-          if [ -d vendor/krankikom ]; then
-            echo "vendor/krankikom exists, skipping composer install"
-          else
-            ./devsetup-composer-install.sh
-          fi
+          key: ${{ runner.os }}-${{ steps.system-info.outputs.release }}-vendor-${{ hashFiles('**/composer.lock') }}
 
+      - name: run devsetup composer install
+        # if: steps.cache-vendor.outputs.cache-hit != 'true'
+        run: |
+          if [ -z "${{ steps.cache-vendor.outputs.cache-hit }}" ]; then
+            ./devsetup-composer-install.sh
+          else
+            echo "Using cached composer files"
+          fi
 
       - name: Set NAMESPACE_PREFIX if not already set
         run: |
           if [[ -z "${NAMESPACE_PREFIX}" ]]; then
-            # NAMESPACE_PREFIX is not set, compute and set it
-            PREFIX=$(echo "${GITHUB_REPOSITORY}" | cut -d '/' -f 2 | cut -d '-' -f 1)
-            echo "Setting NAMESPACE_PREFIX to $PREFIX"
-            echo "NAMESPACE_PREFIX=$PREFIX" >> "$GITHUB_ENV"
+            # NAMESPACE_PREFIX is not set, use repository name
+            echo "Setting NAMESPACE_PREFIX to ${{ github.event.repository.name }}"
+            echo "NAMESPACE_PREFIX=${{ github.event.repository.name }}" >> "$GITHUB_ENV"
           else
             # NAMESPACE_PREFIX is already set, use the existing value
             echo "Using existing NAMESPACE_PREFIX: ${NAMESPACE_PREFIX}"
           fi
 
+      - name: Generate KUBECONFIG
+        run: |
+          echo "Creating KUBECONFIG"
+          export KUBECONFIG="$HOME/kubeconfig"
+          touch $HOME/kubeconfig
+          kubectl config set-cluster default --server=${KUBERNETES_URL}
+          kubectl config set-credentials github-actions-sa --token=${KUBERNETES_TOKEN}
+          kubectl config set-context default --user=github-actions-sa --cluster=default --namespace=${NAMESPACE_PREFIX}-${ENVIRONMENT}
+          kubectl config use-context default
+          echo "Testing KUBECONFIG"
+          kubectl version || echo "ERROR: Somethings wrong with your VAR / Secret variables, env-secret KUBERNETES_TOKEN and repo-variable KUBERNETES_URL is set."
+          echo "KUBECONFIG=$HOME/kubeconfig" >> "$GITHUB_ENV"
+        env:
+          KUBERNETES_TOKEN: ${{ secrets.KUBERNETES_TOKEN }}
+          KUBERNETES_URL: ${{ vars.KUBERNETES_URL }}
+          ENVIRONMENT: ${{ inputs.environment }}
+
+      - name: Create docker config for ImagePullSecret
+        run: |
+          echo "Creating Docker Config"
+          if [[ -d "./kubernetes/secrets" ]]; then
+            if [[ -z "${GHCR_TOKEN}" ]]; then
+              echo "ERROR: Secret 'GHCR_TOKEN' missing in Settings"
+              exit 1
+            fi
+            export DOCKER_CONFIG="./kubernetes/secrets"
+            echo $GHCR_TOKEN | docker login ghcr.io -u '$' --password-stdin
+          fi
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Set htaccess if needed
+        run: |
+          echo "Check if htaccess needs to be set"
+          if [[ -d "./kubernetes/secrets" ]]; then
+            if [ ! -z "$HTPASSWD_AUTH" ]; then
+              echo "Setting Basic Auth for nginx"
+              cd ./kubernetes/secrets
+              kustomize edit add secret basic-auth --from-literal=auth=$HTPASSWD_AUTH
+              cd ../..
+            fi
+          fi
+        env:
+          HTPASSWD_AUTH: ${{ secrets.HTPASSWD_AUTH }}
+
       - name: Kustomize and kubectl apply
         run: |
-          export KUBECONFIG="$PWD/kubeconfig"
-          echo "$KUBECFGSECRET" >"$KUBECONFIG"
           cd "kubernetes/$ENVIRONMENT"
           ls -al
           echo ""
@@ -142,17 +176,17 @@ jobs:
           kustomize build | kubeval --ignore-missing-schemas --strict --force-color
           echo "---------------------------------"
           echo "Deleting pimcore-migration Job (so we can recreate it) ... a failure is not a problem:"
-          kubectl -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" --context="${CONTEXT}" delete job pimcore-migration || true
+          kubectl -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" delete job pimcore-migration || true
           echo "---------------------------------"
           echo "Running kubectl apply"
-          kustomize build | kubectl --context="${CONTEXT}" apply -f -
+          kustomize build | kubectl apply -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" -f -
           echo "---------------------------------"
           echo "PIMCORE_INSTALL: $PIMCORE_INSTALL"
           if [ "$PIMCORE_INSTALL" != "false" ]; then
             echo "Running pimcore install"
             cd pimcore-install
             echo "Deleting pimcore-install Job (so we can recreate it) ... a failure is not a problem:"
-            kubectl -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" --context="${CONTEXT}" delete job pimcore-install || true
+            kubectl -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" delete job pimcore-install || true
             echo "Setting image version (php-fpm)"
             kustomize edit set image "k-registry.krankikom.de/krankikom/pimcore-website=${FULL_IMAGENAME_LOWER}:${IMAGELABEL}"
             echo "Setting namespace ${NAMESPACE_PREFIX}-${ENVIRONMENT}"
@@ -162,13 +196,11 @@ jobs:
             echo "Running kubeval"
             kustomize build | kubeval --ignore-missing-schemas --strict --force-color
             echo "Running kubectl apply"
-            kustomize build | kubectl --context="${CONTEXT}" apply -f -
+            kustomize build | kubectl apply -n "${NAMESPACE_PREFIX}-${ENVIRONMENT}" -f -
             cd ..
           fi
         env:
-          CONTEXT: ${{ inputs.k8scontext }}
-          ENVIRONMENT: ${{ inputs.environment }}
           FULL_IMAGENAME_LOWER: ${{ steps.lowercase-fully-qualified-image-name.outputs.lowercase }}
           IMAGELABEL: ${{ inputs.imagelabel }}
           PIMCORE_INSTALL: ${{ inputs.pimcore_install }}
-          KUBECFGSECRET: ${{ secrets.KUBECONFIG }}
+          ENVIRONMENT: ${{ inputs.environment }}

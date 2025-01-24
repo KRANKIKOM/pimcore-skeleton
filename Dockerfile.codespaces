@@ -1,0 +1,14 @@
+# Use the Codespaces default image as the base image
+FROM mcr.microsoft.com/devcontainers/universal:2
+
+# Install direnv
+RUN apt-get update && apt-get install -y direnv && apt-get clean
+
+RUN id -u codespace &>/dev/null || useradd -m codespace
+RUN usermod -aG sudo codespace && usermod -aG docker codespace
+
+# Set the default user to vscode
+USER codespace
+
+# Set the WORKDIR to /workspace (Codespaces default)
+WORKDIR /workspaces
