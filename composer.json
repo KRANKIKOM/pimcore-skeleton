@@ -18,7 +18,8 @@
     "pimcore/pimcore": "*",
     "pimcore/platform-version": "^2024.4",
     "symfony/dotenv": "^6.2",
-    "symfony/runtime": "^6.2"
+    "symfony/runtime": "^6.2",
+    "pimcore/quill-bundle": "*"
   },
   "require-dev": {
     "vincentlanglet/twig-cs-fixer": "^3.5",
